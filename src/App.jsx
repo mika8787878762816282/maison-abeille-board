@@ -4,9 +4,21 @@ const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f
 let UID = 10;
 const gid = () => `n${UID++}`;
 
-const save = async (d) => { try { localStorage.setItem('mm8', JSON.stringify(d)); } catch {} };
+const save = async (d) => {
+  try {
+    await fetch('/api/board', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(d),
+    });
+  } catch {}
+};
 const loadSaved = async () => {
-  try { const r = localStorage.getItem('mm8'); return r ? JSON.parse(r) : null; } catch { return null; }
+  try {
+    const r = await fetch('/api/board');
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
 };
 
 const INIT_NODES = [
