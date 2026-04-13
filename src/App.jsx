@@ -175,6 +175,7 @@ export default function App() {
   const [dark, setDark]   = useState(false);
   const [mode, setMode]   = useState('select');
   const [sel, setSel]     = useState(null);
+  const [selAll, setSelAll] = useState(false);
   const [selEdge, setSelEdge] = useState(null);
   const [edgeColor, setEdgeColor] = useState('#888888');
   const [conn, setConn]   = useState(null);
@@ -361,6 +362,7 @@ export default function App() {
 
       setSel(null);
       setSelEdge(null);
+      setSelAll(false);
       s.gesture = {
         type: 'pan',
         startX: t.clientX, startY: t.clientY,
@@ -494,6 +496,25 @@ export default function App() {
     };
   }, []);
 
+  // Ctrl+A → select all
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        setSelAll(true);
+        setSel(null);
+        setSelEdge(null);
+      }
+      if (e.key === 'Escape') {
+        setSelAll(false);
+        setSel(null);
+        setSelEdge(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const T = dark ? {
     bg:'#0e0e1a', dot:'rgba(255,255,255,0.04)', bar:'rgba(18,18,32,0.97)',
     bBorder:'rgba(255,255,255,0.09)', line:'rgba(255,255,255,0.25)',
@@ -535,8 +556,21 @@ export default function App() {
   };
 
   const adjFs = (d) => {
-    if (!sel) return;
-    setNodes(p => p.map(n => n.id === sel ? { ...n, fs: Math.max(9, Math.min(40, (n.fs||13)+d)) } : n));
+    if (selAll) {
+      setNodes(p => p.map(n => ({ ...n, fs: Math.max(9, Math.min(40, (n.fs||13)+d)) })));
+    } else if (sel) {
+      setNodes(p => p.map(n => n.id === sel ? { ...n, fs: Math.max(9, Math.min(40, (n.fs||13)+d)) } : n));
+    }
+  };
+
+  const adjW = (d) => {
+    if (!selAll) return;
+    setNodes(p => p.map(n => ({ ...n, w: Math.max(80, n.w + d) })));
+  };
+
+  const adjH = (d) => {
+    if (!selAll) return;
+    setNodes(p => p.map(n => ({ ...n, h: Math.max(36, n.h + d) })));
   };
 
   const delSel = () => {
@@ -583,7 +617,7 @@ export default function App() {
         maxWidth:'calc(100vw - 12px)', justifyContent:'center'
       }}>
         {[{k:'select',l:'↖'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}].map(b => (
-          <button key={b.k} onClick={() => { setMode(b.k); setConn(null); }} style={{
+          <button key={b.k} onClick={() => { setMode(b.k); setConn(null); setSelAll(false); }} style={{
             background: mode===b.k ? '#4b5ce8' : T.btnBg,
             color: mode===b.k ? '#fff' : T.btnTxt,
             border:'none', borderRadius:7, padding:'5px 10px',
@@ -591,6 +625,13 @@ export default function App() {
             whiteSpace:'nowrap', minWidth:28
           }}>{b.l}</button>
         ))}
+        <button onClick={() => { setSelAll(a => !a); setSel(null); setSelEdge(null); }} style={{
+          background: selAll ? '#f97316' : T.btnBg,
+          color: selAll ? '#fff' : T.btnTxt,
+          border:'none', borderRadius:7, padding:'5px 10px',
+          fontSize:12, cursor:'pointer', fontWeight: selAll ? '600':'normal',
+          whiteSpace:'nowrap'
+        }}>⊞ Tout</button>
 
         {selNode && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
@@ -622,6 +663,39 @@ export default function App() {
               borderRadius:7, padding:'5px 9px', fontSize:11, cursor:'pointer'
             }}>✕</button>
           )}
+        </>}
+
+        {selAll && <>
+          <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          <span style={{color:T.sub, fontSize:10}}>texte</span>
+          <button onClick={() => adjFs(-1)} style={{
+            background:T.btnBg, color:T.btnTxt, border:'none',
+            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+          }}>A−</button>
+          <button onClick={() => adjFs(1)} style={{
+            background:T.btnBg, color:T.btnTxt, border:'none',
+            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+          }}>A+</button>
+          <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          <span style={{color:T.sub, fontSize:10}}>largeur</span>
+          <button onClick={() => adjW(-10)} style={{
+            background:T.btnBg, color:T.btnTxt, border:'none',
+            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+          }}>W−</button>
+          <button onClick={() => adjW(10)} style={{
+            background:T.btnBg, color:T.btnTxt, border:'none',
+            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+          }}>W+</button>
+          <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          <span style={{color:T.sub, fontSize:10}}>hauteur</span>
+          <button onClick={() => adjH(-4)} style={{
+            background:T.btnBg, color:T.btnTxt, border:'none',
+            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+          }}>H−</button>
+          <button onClick={() => adjH(4)} style={{
+            background:T.btnBg, color:T.btnTxt, border:'none',
+            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+          }}>H+</button>
         </>}
 
         {selEdge && <>
