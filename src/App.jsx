@@ -176,6 +176,10 @@ export default function App() {
   const [mode, setMode]   = useState('select');
   const [sel, setSel]     = useState(null);
   const [selAll, setSelAll] = useState(false);
+  const [sliderFs, setSliderFs] = useState(0);
+  const [sliderW,  setSliderW]  = useState(0);
+  const [sliderH,  setSliderH]  = useState(0);
+  const baseNodesRef = useRef(null);
   const [selEdge, setSelEdge] = useState(null);
   const [edgeColor, setEdgeColor] = useState('#888888');
   const [conn, setConn]   = useState(null);
@@ -501,6 +505,8 @@ export default function App() {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
+        baseNodesRef.current = stateRef.current.nodes.map(n => ({ ...n }));
+        setSliderFs(0); setSliderW(0); setSliderH(0);
         setSelAll(true);
         setSel(null);
         setSelEdge(null);
@@ -556,21 +562,49 @@ export default function App() {
   };
 
   const adjFs = (d) => {
-    if (selAll) {
-      setNodes(p => p.map(n => ({ ...n, fs: Math.max(9, Math.min(40, (n.fs||13)+d)) })));
-    } else if (sel) {
+    if (sel) {
       setNodes(p => p.map(n => n.id === sel ? { ...n, fs: Math.max(9, Math.min(40, (n.fs||13)+d)) } : n));
     }
   };
 
-  const adjW = (d) => {
-    if (!selAll) return;
-    setNodes(p => p.map(n => ({ ...n, w: Math.max(80, n.w + d) })));
+  const activateSelAll = () => {
+    baseNodesRef.current = nodes.map(n => ({ ...n }));
+    setSliderFs(0);
+    setSliderW(0);
+    setSliderH(0);
+    setSelAll(true);
+    setSel(null);
+    setSelEdge(null);
   };
 
-  const adjH = (d) => {
-    if (!selAll) return;
-    setNodes(p => p.map(n => ({ ...n, h: Math.max(36, n.h + d) })));
+  const onSliderFs = (val) => {
+    setSliderFs(val);
+    const base = baseNodesRef.current;
+    if (!base) return;
+    setNodes(p => p.map(n => {
+      const b = base.find(b => b.id === n.id);
+      return b ? { ...n, fs: Math.max(9, Math.min(40, (b.fs||13) + val)) } : n;
+    }));
+  };
+
+  const onSliderW = (val) => {
+    setSliderW(val);
+    const base = baseNodesRef.current;
+    if (!base) return;
+    setNodes(p => p.map(n => {
+      const b = base.find(b => b.id === n.id);
+      return b ? { ...n, w: Math.max(80, b.w + val) } : n;
+    }));
+  };
+
+  const onSliderH = (val) => {
+    setSliderH(val);
+    const base = baseNodesRef.current;
+    if (!base) return;
+    setNodes(p => p.map(n => {
+      const b = base.find(b => b.id === n.id);
+      return b ? { ...n, h: Math.max(36, b.h + val) } : n;
+    }));
   };
 
   const delSel = () => {
@@ -625,7 +659,7 @@ export default function App() {
             whiteSpace:'nowrap', minWidth:28
           }}>{b.l}</button>
         ))}
-        <button onClick={() => { setSelAll(a => !a); setSel(null); setSelEdge(null); }} style={{
+        <button onClick={() => { selAll ? (setSelAll(false)) : activateSelAll(); }} style={{
           background: selAll ? '#f97316' : T.btnBg,
           color: selAll ? '#fff' : T.btnTxt,
           border:'none', borderRadius:7, padding:'5px 10px',
@@ -667,35 +701,23 @@ export default function App() {
 
         {selAll && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <span style={{color:T.sub, fontSize:10}}>texte</span>
-          <button onClick={() => adjFs(-1)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>A−</button>
-          <button onClick={() => adjFs(1)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>A+</button>
+          <span style={{color:T.sub, fontSize:10, minWidth:28}}>A {sliderFs > 0 ? '+' : ''}{sliderFs}</span>
+          <input type="range" min={-8} max={14} step={1} value={sliderFs}
+            onChange={e => onSliderFs(Number(e.target.value))}
+            style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
+          />
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <span style={{color:T.sub, fontSize:10}}>largeur</span>
-          <button onClick={() => adjW(-10)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>W−</button>
-          <button onClick={() => adjW(10)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>W+</button>
+          <span style={{color:T.sub, fontSize:10, minWidth:36}}>W {sliderW > 0 ? '+' : ''}{sliderW}</span>
+          <input type="range" min={-100} max={200} step={5} value={sliderW}
+            onChange={e => onSliderW(Number(e.target.value))}
+            style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
+          />
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <span style={{color:T.sub, fontSize:10}}>hauteur</span>
-          <button onClick={() => adjH(-4)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>H−</button>
-          <button onClick={() => adjH(4)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>H+</button>
+          <span style={{color:T.sub, fontSize:10, minWidth:36}}>H {sliderH > 0 ? '+' : ''}{sliderH}</span>
+          <input type="range" min={-20} max={80} step={2} value={sliderH}
+            onChange={e => onSliderH(Number(e.target.value))}
+            style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
+          />
         </>}
 
         {selEdge && <>
