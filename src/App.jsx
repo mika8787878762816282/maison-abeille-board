@@ -183,9 +183,11 @@ export default function App() {
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 1000, h: 800 });
+  const [uploading, setUploading] = useState(false);
 
-  const svgRef   = useRef(null);
-  const inputRef = useRef(null);
+  const svgRef    = useRef(null);
+  const inputRef  = useRef(null);
+  const imgFileRef = useRef(null);
   const editValRef = useRef('');
   useEffect(() => { editValRef.current = editVal; }, [editVal]);
 
@@ -618,6 +620,62 @@ export default function App() {
     setEditVal(node.text);
   };
 
+  const uploadImage = async (file) => {
+    setUploading(true);
+    try {
+      const imgBitmap = await createImageBitmap(file);
+      const natW = imgBitmap.width, natH = imgBitmap.height;
+
+      const maxDim = 1200;
+      let drawW = natW, drawH = natH;
+      if (natW > maxDim || natH > maxDim) {
+        const ratio = Math.min(maxDim / natW, maxDim / natH);
+        drawW = Math.round(natW * ratio);
+        drawH = Math.round(natH * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = drawW; canvas.height = drawH;
+      canvas.getContext('2d').drawImage(imgBitmap, 0, 0, drawW, drawH);
+
+      const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      const base64 = canvas.toDataURL(mime, 0.88).split(',')[1];
+      const ext = mime === 'image/png' ? 'png' : 'jpg';
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, filename: `img.${ext}`, contentType: mime }),
+      });
+      const { url, error } = await res.json();
+      if (error) throw new Error(error);
+
+      const maxNode = 320;
+      let nodeW = natW, nodeH = natH;
+      if (natW > maxNode || natH > maxNode) {
+        const r = Math.min(maxNode / natW, maxNode / natH);
+        nodeW = Math.round(natW * r);
+        nodeH = Math.round(natH * r);
+      }
+
+      const vb = stateRef.current.viewBox;
+      const nn = {
+        id: gid(),
+        x: vb.x + vb.w / 2,
+        y: vb.y + vb.h / 2,
+        w: nodeW, h: nodeH,
+        text: '', color: 'transparent', fs: 13,
+        imageUrl: url,
+      };
+      setNodes(p => [...p, nn]);
+      setSel(nn.id);
+      setMode('select');
+    } catch (e) {
+      alert('Erreur upload : ' + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const selNode = nodes.find(n => n.id === sel);
 
   if (!ready) return (
@@ -656,6 +714,12 @@ export default function App() {
             whiteSpace:'nowrap', minWidth:28
           }}>{b.l}</button>
         ))}
+        <button onClick={() => imgFileRef.current?.click()} disabled={uploading} style={{
+          background: uploading ? 'rgba(249,115,22,0.25)' : T.btnBg,
+          color: uploading ? '#f97316' : T.btnTxt,
+          border:'none', borderRadius:7, padding:'5px 10px',
+          fontSize:13, cursor: uploading ? 'wait' : 'pointer', whiteSpace:'nowrap',
+        }}>{uploading ? '⏳' : '🖼'}</button>
         <button onClick={() => { selAll ? (setSelAll(false)) : activateSelAll(); }} style={{
           background: selAll ? '#f97316' : T.btnBg,
           color: selAll ? '#fff' : T.btnTxt,
@@ -666,28 +730,30 @@ export default function App() {
 
         {selNode && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <button onClick={() => openEdit(selNode.id)} style={{
-            background:T.btnBg, color:'#20c997', border:'none',
-            borderRadius:7, padding:'5px 9px', fontSize:11, cursor:'pointer'
-          }}>✏</button>
-          <button onClick={() => adjFs(-1)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>A−</button>
-          <button onClick={() => adjFs(1)} style={{
-            background:T.btnBg, color:T.btnTxt, border:'none',
-            borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-          }}>A+</button>
-          <div style={{display:'flex',gap:3,alignItems:'center'}}>
-            {PAL.map(c => (
-              <div key={c} onClick={() => setNodes(p => p.map(n => n.id===sel?{...n,color:c}:n))}
-                style={{
-                  width:16, height:16, borderRadius:4, background:c, cursor:'pointer',
-                  border: selNode.color===c ? `2px solid ${dark?'#fff':'#222'}` : '2px solid transparent',
-                  boxSizing:'border-box', flexShrink:0,
-                }} />
-            ))}
-          </div>
+          {!selNode.imageUrl && <>
+            <button onClick={() => openEdit(selNode.id)} style={{
+              background:T.btnBg, color:'#20c997', border:'none',
+              borderRadius:7, padding:'5px 9px', fontSize:11, cursor:'pointer'
+            }}>✏</button>
+            <button onClick={() => adjFs(-1)} style={{
+              background:T.btnBg, color:T.btnTxt, border:'none',
+              borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+            }}>A−</button>
+            <button onClick={() => adjFs(1)} style={{
+              background:T.btnBg, color:T.btnTxt, border:'none',
+              borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
+            }}>A+</button>
+            <div style={{display:'flex',gap:3,alignItems:'center'}}>
+              {PAL.map(c => (
+                <div key={c} onClick={() => setNodes(p => p.map(n => n.id===sel?{...n,color:c}:n))}
+                  style={{
+                    width:16, height:16, borderRadius:4, background:c, cursor:'pointer',
+                    border: selNode.color===c ? `2px solid ${dark?'#fff':'#222'}` : '2px solid transparent',
+                    boxSizing:'border-box', flexShrink:0,
+                  }} />
+              ))}
+            </div>
+          </>}
           {sel && (
             <button onClick={delSel} style={{
               background:'rgba(232,85,85,0.12)', color:'#e85555', border:'none',
@@ -777,6 +843,11 @@ export default function App() {
         }}>→ Touchez un nœud pour relier</div>
       )}
 
+      {/* Hidden image input */}
+      <input ref={imgFileRef} type="file" accept="image/*" style={{display:'none'}}
+        onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value=''; }}
+      />
+
       {/* SVG */}
       <svg ref={svgRef} width="100%" height="100%"
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
@@ -823,32 +894,59 @@ export default function App() {
           return (
             <g key={node.id} transform={`translate(${node.x},${node.y})`}>
               <g data-role="node" data-id={node.id}>
-                <rect x={-node.w/2+2} y={-node.h/2+3}
-                  width={node.w} height={node.h} rx={R}
-                  fill="rgba(0,0,0,0.15)" />
-                <rect x={-node.w/2} y={-node.h/2}
-                  width={node.w} height={node.h} rx={R}
-                  fill={node.color}
-                  stroke={isSel?'rgba(255,255,255,0.95)':isConn?'rgba(255,255,255,0.75)':'transparent'}
-                  strokeWidth={isSel?3:isConn?2.5:0}
-                  strokeDasharray={isConn?'6 3':'none'}
-                />
-                {node.id !== editId && (() => {
-                  const lines = node.text.split('\n');
-                  const fs = node.fs || 13;
-                  const lh = fs * 1.25;
-                  const topOff = -((lines.length - 1) * lh) / 2;
-                  return lines.map((line, i) => (
-                    <text key={i} x={0} y={topOff + i * lh}
-                      textAnchor="middle" dominantBaseline="middle"
-                      fontSize={fs} fill="#fff" fontWeight="600"
-                      fontFamily="system-ui,sans-serif"
-                      style={{ pointerEvents:'none', userSelect:'none' }}
-                    >
-                      {line}
-                    </text>
-                  ));
-                })()}
+                {node.imageUrl ? (
+                  <>
+                    <rect x={-node.w/2+2} y={-node.h/2+3}
+                      width={node.w} height={node.h} rx={R}
+                      fill="rgba(0,0,0,0.18)" />
+                    <clipPath id={`clip-${node.id}`}>
+                      <rect x={-node.w/2} y={-node.h/2} width={node.w} height={node.h} rx={R} />
+                    </clipPath>
+                    <image href={node.imageUrl}
+                      x={-node.w/2} y={-node.h/2}
+                      width={node.w} height={node.h}
+                      preserveAspectRatio="xMidYMid meet"
+                      clipPath={`url(#clip-${node.id})`}
+                      style={{ pointerEvents:'none' }}
+                    />
+                    <rect x={-node.w/2} y={-node.h/2}
+                      width={node.w} height={node.h} rx={R}
+                      fill="transparent"
+                      stroke={isSel?'rgba(255,255,255,0.95)':isConn?'rgba(255,255,255,0.75)':'rgba(255,255,255,0.15)'}
+                      strokeWidth={isSel?3:isConn?2.5:1}
+                      strokeDasharray={isConn?'6 3':'none'}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <rect x={-node.w/2+2} y={-node.h/2+3}
+                      width={node.w} height={node.h} rx={R}
+                      fill="rgba(0,0,0,0.15)" />
+                    <rect x={-node.w/2} y={-node.h/2}
+                      width={node.w} height={node.h} rx={R}
+                      fill={node.color}
+                      stroke={isSel?'rgba(255,255,255,0.95)':isConn?'rgba(255,255,255,0.75)':'transparent'}
+                      strokeWidth={isSel?3:isConn?2.5:0}
+                      strokeDasharray={isConn?'6 3':'none'}
+                    />
+                    {node.id !== editId && (() => {
+                      const lines = node.text.split('\n');
+                      const fs = node.fs || 13;
+                      const lh = fs * 1.25;
+                      const topOff = -((lines.length - 1) * lh) / 2;
+                      return lines.map((line, i) => (
+                        <text key={i} x={0} y={topOff + i * lh}
+                          textAnchor="middle" dominantBaseline="middle"
+                          fontSize={fs} fill="#fff" fontWeight="600"
+                          fontFamily="system-ui,sans-serif"
+                          style={{ pointerEvents:'none', userSelect:'none' }}
+                        >
+                          {line}
+                        </text>
+                      ));
+                    })()}
+                  </>
+                )}
               </g>
               {isSel && (
                 <>
