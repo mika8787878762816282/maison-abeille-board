@@ -842,22 +842,6 @@ export default function App() {
         onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value=''; }}
       />
 
-      {/* FAB image — bouton flottant bas droite */}
-      <button
-        onClick={() => imgFileRef.current?.click()}
-        disabled={uploading}
-        style={{
-          position:'fixed', bottom:24, right:20, zIndex:40,
-          width:64, height:64, borderRadius:32,
-          background: uploading ? '#f97316' : '#4b5ce8',
-          color:'#fff', border:'none',
-          boxShadow:'0 4px 18px rgba(0,0,0,0.35)',
-          fontSize:11, fontWeight:'700', lineHeight:1.2,
-          cursor: uploading ? 'wait' : 'pointer',
-          display:'flex', alignItems:'center', justifyContent:'center',
-        }}
-      >{uploading ? 'envoi\n...' : 'IMG\n+'}</button>
-
       {/* SVG */}
       <svg ref={svgRef} width="100%" height="100%"
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
@@ -1025,6 +1009,27 @@ export default function App() {
         <div>Nœud → glisser pour déplacer</div>
         <div>Fond → scroll · 2 doigts → zoom</div>
       </div>
+
+      {/* FAB image — après le SVG, position absolute dans le conteneur full-screen */}
+      <button
+        onClick={() => imgFileRef.current?.click()}
+        disabled={uploading}
+        style={{
+          position:'absolute', bottom:24, right:20, zIndex:50,
+          width:68, height:68, borderRadius:34,
+          background: uploading ? '#f97316' : '#4b5ce8',
+          color:'#fff', border:'3px solid rgba(255,255,255,0.5)',
+          boxShadow:'0 4px 20px rgba(0,0,0,0.4)',
+          fontSize:13, fontWeight:'800',
+          cursor: uploading ? 'wait' : 'pointer',
+          display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center',
+          lineHeight:1.1,
+        }}
+      >
+        <span style={{fontSize:18}}>+</span>
+        <span>IMG</span>
+      </button>
     </div>
   );
 }
