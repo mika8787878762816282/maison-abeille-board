@@ -715,11 +715,12 @@ export default function App() {
           }}>{b.l}</button>
         ))}
         <button onClick={() => imgFileRef.current?.click()} disabled={uploading} style={{
-          background: uploading ? 'rgba(249,115,22,0.25)' : T.btnBg,
-          color: uploading ? '#f97316' : T.btnTxt,
-          border:'none', borderRadius:7, padding:'5px 10px',
-          fontSize:13, cursor: uploading ? 'wait' : 'pointer', whiteSpace:'nowrap',
-        }}>{uploading ? '⏳' : '🖼'}</button>
+          background: uploading ? 'rgba(249,115,22,0.35)' : 'rgba(75,92,232,0.18)',
+          color: uploading ? '#f97316' : '#4b5ce8',
+          border:'1px solid rgba(75,92,232,0.4)',
+          borderRadius:7, padding:'5px 10px',
+          fontSize:12, fontWeight:'600', cursor: uploading ? 'wait' : 'pointer', whiteSpace:'nowrap',
+        }}>{uploading ? 'envoi...' : '+ IMG'}</button>
         <button onClick={() => { selAll ? (setSelAll(false)) : activateSelAll(); }} style={{
           background: selAll ? '#f97316' : T.btnBg,
           color: selAll ? '#fff' : T.btnTxt,
