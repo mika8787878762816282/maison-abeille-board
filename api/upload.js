@@ -1,6 +1,6 @@
 import { createSign } from 'crypto';
 
-const BUCKET = 'sfria-8d107.appspot.com';
+const BUCKET = 'sfria-8d107.firebasestorage.app';
 
 async function getStorageToken() {
   const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
