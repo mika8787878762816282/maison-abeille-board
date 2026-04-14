@@ -13,7 +13,7 @@ async function getStorageToken() {
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
-    scope: 'https://www.googleapis.com/auth/devstorage.read_write',
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
   })).toString('base64url');
 
   const sign = createSign('RSA-SHA256');
