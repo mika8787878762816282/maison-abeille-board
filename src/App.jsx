@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316'];
 let UID = 10;
@@ -1010,26 +1011,29 @@ export default function App() {
         <div>Fond → scroll · 2 doigts → zoom</div>
       </div>
 
-      {/* FAB image — après le SVG, position absolute dans le conteneur full-screen */}
-      <button
-        onClick={() => imgFileRef.current?.click()}
-        disabled={uploading}
-        style={{
-          position:'absolute', bottom:24, right:20, zIndex:50,
-          width:68, height:68, borderRadius:34,
-          background: uploading ? '#f97316' : '#4b5ce8',
-          color:'#fff', border:'3px solid rgba(255,255,255,0.5)',
-          boxShadow:'0 4px 20px rgba(0,0,0,0.4)',
-          fontSize:13, fontWeight:'800',
-          cursor: uploading ? 'wait' : 'pointer',
-          display:'flex', flexDirection:'column',
-          alignItems:'center', justifyContent:'center',
-          lineHeight:1.1,
-        }}
-      >
-        <span style={{fontSize:18}}>+</span>
-        <span>IMG</span>
-      </button>
+      {/* FAB image — portal sur document.body pour échapper overflow:hidden */}
+      {createPortal(
+        <button
+          onClick={() => imgFileRef.current?.click()}
+          disabled={uploading}
+          style={{
+            position:'fixed', bottom:28, right:20, zIndex:9999,
+            width:72, height:72, borderRadius:36,
+            background: uploading ? '#f97316' : '#4b5ce8',
+            color:'#fff', border:'3px solid rgba(255,255,255,0.6)',
+            boxShadow:'0 4px 24px rgba(0,0,0,0.5)',
+            fontSize:13, fontWeight:'800',
+            cursor: uploading ? 'wait' : 'pointer',
+            display:'flex', flexDirection:'column',
+            alignItems:'center', justifyContent:'center',
+            lineHeight:1.1, gap:2,
+          }}
+        >
+          <span style={{fontSize:22, lineHeight:1}}>+</span>
+          <span style={{fontSize:11}}>IMG</span>
+        </button>,
+        document.body
+      )}
     </div>
   );
 }
