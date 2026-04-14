@@ -714,13 +714,6 @@ export default function App() {
             whiteSpace:'nowrap', minWidth:28
           }}>{b.l}</button>
         ))}
-        <button onClick={() => imgFileRef.current?.click()} disabled={uploading} style={{
-          background: uploading ? 'rgba(249,115,22,0.35)' : 'rgba(75,92,232,0.18)',
-          color: uploading ? '#f97316' : '#4b5ce8',
-          border:'1px solid rgba(75,92,232,0.4)',
-          borderRadius:7, padding:'5px 10px',
-          fontSize:12, fontWeight:'600', cursor: uploading ? 'wait' : 'pointer', whiteSpace:'nowrap',
-        }}>{uploading ? 'envoi...' : '+ IMG'}</button>
         <button onClick={() => { selAll ? (setSelAll(false)) : activateSelAll(); }} style={{
           background: selAll ? '#f97316' : T.btnBg,
           color: selAll ? '#fff' : T.btnTxt,
@@ -848,6 +841,22 @@ export default function App() {
       <input ref={imgFileRef} type="file" accept="image/*" style={{display:'none'}}
         onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value=''; }}
       />
+
+      {/* FAB image — bouton flottant bas droite */}
+      <button
+        onClick={() => imgFileRef.current?.click()}
+        disabled={uploading}
+        style={{
+          position:'fixed', bottom:24, right:20, zIndex:40,
+          width:64, height:64, borderRadius:32,
+          background: uploading ? '#f97316' : '#4b5ce8',
+          color:'#fff', border:'none',
+          boxShadow:'0 4px 18px rgba(0,0,0,0.35)',
+          fontSize:11, fontWeight:'700', lineHeight:1.2,
+          cursor: uploading ? 'wait' : 'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}
+      >{uploading ? 'envoi\n...' : 'IMG\n+'}</button>
 
       {/* SVG */}
       <svg ref={svgRef} width="100%" height="100%"
