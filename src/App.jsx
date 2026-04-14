@@ -390,7 +390,7 @@ export default function App() {
         const newW = g.startVB.w * scale;
         const newH = g.startVB.h * scale;
         const minW = rect.width * 0.2;
-        const maxW = rect.width * 8;
+        const maxW = rect.width * 30;
         if (newW < minW || newW > maxW) return;
         setViewBox({
           x: worldMx - ((cx - rect.left) / rect.width) * newW,
