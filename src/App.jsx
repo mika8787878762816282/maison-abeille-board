@@ -188,6 +188,8 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState('mindmap');
   const [syncFs, setSyncFs] = useState(true);
+  const [multiSel, setMultiSel] = useState(new Set());
+  const [rectDraw, setRectDraw] = useState(null);
 
   // ── État Parcours MA ──
   const [pNodes,    setPNodes]    = useState(P_INIT_NODES);
@@ -393,6 +395,13 @@ export default function App() {
       setSel(null);
       setSelEdge(null);
       setSelAll(false);
+      if (s.mode === 'rect') {
+        const w = toWorld(t.clientX, t.clientY);
+        s.gesture = { type: 'rectsel', sx: w.x, sy: w.y, ex: w.x, ey: w.y };
+        setRectDraw({ x1: w.x, y1: w.y, x2: w.x, y2: w.y });
+        return;
+      }
+      setMultiSel(new Set());
       s.gesture = {
         type: 'pan',
         startX: t.clientX, startY: t.clientY,
@@ -405,6 +414,13 @@ export default function App() {
       const g = s.gesture;
       if (!g) return;
       const rect = svg.getBoundingClientRect();
+
+      if (g.type === 'rectsel' && points.length >= 1) {
+        const w = toWorld(points[0].clientX, points[0].clientY);
+        g.ex = w.x; g.ey = w.y;
+        setRectDraw({ x1: g.sx, y1: g.sy, x2: w.x, y2: w.y });
+        return;
+      }
 
       if (g.type === 'pinch' && points.length >= 2) {
         const newDist = dist(points[0], points[1]);
@@ -468,7 +484,24 @@ export default function App() {
       }
     };
 
-    const endGesture = () => { stateRef.current.gesture = null; };
+    const endGesture = () => {
+      const s = stateRef.current;
+      const g = s.gesture;
+      if (g?.type === 'rectsel') {
+        const minX = Math.min(g.sx, g.ex), maxX = Math.max(g.sx, g.ex);
+        const minY = Math.min(g.sy, g.ey), maxY = Math.max(g.sy, g.ey);
+        const selected = new Set(
+          s.nodes.filter(n => n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY).map(n => n.id)
+        );
+        if (selected.size > 0) {
+          baseNodesRef.current = s.nodes.map(n => ({...n}));
+          setSliderFs(0); setSliderW(0); setSliderH(0);
+          setMultiSel(selected);
+        }
+        setRectDraw(null);
+      }
+      s.gesture = null;
+    };
 
     const onTS = (e) => { e.preventDefault(); startGesture([...e.touches], e.target); };
     const onTM = (e) => { e.preventDefault(); moveGesture([...e.touches]); };
@@ -540,11 +573,14 @@ export default function App() {
         baseNodesRef.current = stateRef.current.nodes.map(n => ({ ...n }));
         setSliderFs(0); setSliderW(0); setSliderH(0);
         setSelAll(true);
+        setMultiSel(new Set());
         setSel(null);
         setSelEdge(null);
       }
       if (e.key === 'Escape') {
         setSelAll(false);
+        setMultiSel(new Set());
+        setRectDraw(null);
         setSel(null);
         setSelEdge(null);
       }
@@ -599,6 +635,7 @@ export default function App() {
     setSliderW(0);
     setSliderH(0);
     setSelAll(true);
+    setMultiSel(new Set());
     setSel(null);
     setSelEdge(null);
   };
@@ -608,6 +645,7 @@ export default function App() {
     const base = baseNodesRef.current;
     if (!base) return;
     setNodes(p => p.map(n => {
+      if (!selAll && !multiSel.has(n.id)) return n;
       const b = base.find(b => b.id === n.id);
       return b ? { ...n, fs: Math.max(9, Math.min(40, (b.fs||13) + val)) } : n;
     }));
@@ -618,6 +656,7 @@ export default function App() {
     const base = baseNodesRef.current;
     if (!base) return;
     setNodes(p => p.map(n => {
+      if (!selAll && !multiSel.has(n.id)) return n;
       const b = base.find(b => b.id === n.id);
       return b ? { ...n, w: Math.max(80, b.w + val) } : n;
     }));
@@ -628,6 +667,7 @@ export default function App() {
     const base = baseNodesRef.current;
     if (!base) return;
     setNodes(p => p.map(n => {
+      if (!selAll && !multiSel.has(n.id)) return n;
       const b = base.find(b => b.id === n.id);
       return b ? { ...n, h: Math.max(36, b.h + val) } : n;
     }));
@@ -798,7 +838,7 @@ export default function App() {
   const selNode = nodes.find(n => n.id === sel);
 
   // ── Vars actives selon l'onglet ──
-  const activeSelAll     = tab === 'mindmap' ? selAll     : pSelAll;
+  const activeSelAll     = tab === 'mindmap' ? (selAll || multiSel.size > 0) : pSelAll;
   const activeSliderFs   = tab === 'mindmap' ? sliderFs   : pSliderFs;
   const activeSliderW    = tab === 'mindmap' ? sliderW    : pSliderW;
   const activeSliderH    = tab === 'mindmap' ? sliderH    : pSliderH;
@@ -850,9 +890,9 @@ export default function App() {
         <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
 
         {tab === 'mindmap' && [
-          {k:'select',l:'↖'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}
+          {k:'select',l:'↖'},{k:'rect',l:'⬚'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}
         ].map(b => (
-          <button key={b.k} onClick={() => { setMode(b.k); setConn(null); setSelAll(false); }} style={{
+          <button key={b.k} onClick={() => { setMode(b.k); setConn(null); setSelAll(false); if(b.k!=='rect'){setMultiSel(new Set());setRectDraw(null);} }} style={{
             background: mode===b.k ? '#4b5ce8' : T.btnBg,
             color: mode===b.k ? '#fff' : T.btnTxt,
             border:'none', borderRadius:7, padding:'5px 10px',
@@ -909,6 +949,9 @@ export default function App() {
 
         {activeSelAll && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          {tab === 'mindmap' && multiSel.size > 0 && !selAll && (
+            <span style={{color:'rgba(75,92,232,0.9)', fontSize:10, minWidth:24, fontWeight:'600'}}>{multiSel.size}⬚</span>
+          )}
           <span style={{color:T.sub, fontSize:10, minWidth:28}}>A {activeSliderFs > 0 ? '+' : ''}{activeSliderFs}</span>
           <input type="range" min={-8} max={14} step={1} value={activeSliderFs}
             onChange={e => doSliderFs(Number(e.target.value))}
@@ -1030,6 +1073,21 @@ export default function App() {
         <rect data-role="bg" x={viewBox.x - 5000} y={viewBox.y - 5000}
           width={viewBox.w + 10000} height={viewBox.h + 10000} fill="url(#dots)"/>
 
+        {/* Rectangle de sélection */}
+        {rectDraw && (
+          <rect
+            x={Math.min(rectDraw.x1, rectDraw.x2)}
+            y={Math.min(rectDraw.y1, rectDraw.y2)}
+            width={Math.abs(rectDraw.x2 - rectDraw.x1)}
+            height={Math.abs(rectDraw.y2 - rectDraw.y1)}
+            fill="rgba(75,92,232,0.08)"
+            stroke="rgba(75,92,232,0.75)"
+            strokeWidth={Math.max(1, 2 / (scale || 1))}
+            strokeDasharray={`${6 / (scale||1)} ${3 / (scale||1)}`}
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
+
         {/* Edges */}
         {edges.map(eg => {
           const a = nodes.find(n => n.id === eg.from);
@@ -1056,6 +1114,7 @@ export default function App() {
         {nodes.map(node => {
           const isSel = sel === node.id;
           const isConn = conn === node.id;
+          const isMultiSel = multiSel.has(node.id);
           const R = 8;
           return (
             <g key={node.id} transform={`translate(${node.x},${node.y})`}>
@@ -1091,9 +1150,9 @@ export default function App() {
                     <rect x={-node.w/2} y={-node.h/2}
                       width={node.w} height={node.h} rx={R}
                       fill={node.color}
-                      stroke={isSel?'rgba(255,255,255,0.95)':isConn?'rgba(255,255,255,0.75)':'transparent'}
-                      strokeWidth={isSel?3:isConn?2.5:0}
-                      strokeDasharray={isConn?'6 3':'none'}
+                      stroke={isSel?'rgba(255,255,255,0.95)':isConn?'rgba(255,255,255,0.75)':isMultiSel?'rgba(75,92,232,0.95)':'transparent'}
+                      strokeWidth={isSel?3:isConn?2.5:isMultiSel?2.5:0}
+                      strokeDasharray={isConn?'6 3':isMultiSel?'5 3':'none'}
                     />
                     {node.id !== editId && (() => {
                       const lines = node.text.split('\n');
