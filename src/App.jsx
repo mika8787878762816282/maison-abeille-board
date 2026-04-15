@@ -207,10 +207,11 @@ export default function App() {
   const pRedoRef = useRef([]);
   const [histVer, setHistVer] = useState(0);
 
-  const svgRef    = useRef(null);
-  const inputRef  = useRef(null);
-  const imgFileRef = useRef(null);
-  const editValRef = useRef('');
+  const svgRef      = useRef(null);
+  const inputRef    = useRef(null);
+  const imgFileRef  = useRef(null);
+  const editValRef  = useRef('');
+  const rectSelRef  = useRef(null); // {sx,sy,ex,ey} en world coords
   useEffect(() => { editValRef.current = editVal; }, [editVal]);
 
   const stateRef = useRef({
@@ -397,7 +398,8 @@ export default function App() {
       setSelAll(false);
       if (s.mode === 'rect') {
         const w = toWorld(t.clientX, t.clientY);
-        s.gesture = { type: 'rectsel', sx: w.x, sy: w.y, ex: w.x, ey: w.y };
+        rectSelRef.current = { sx: w.x, sy: w.y, ex: w.x, ey: w.y };
+        s.gesture = { type: 'rectsel' };
         setRectDraw({ x1: w.x, y1: w.y, x2: w.x, y2: w.y });
         return;
       }
@@ -417,8 +419,11 @@ export default function App() {
 
       if (g.type === 'rectsel' && points.length >= 1) {
         const w = toWorld(points[0].clientX, points[0].clientY);
-        g.ex = w.x; g.ey = w.y;
-        setRectDraw({ x1: g.sx, y1: g.sy, x2: w.x, y2: w.y });
+        const rs = rectSelRef.current;
+        if (rs) {
+          rs.ex = w.x; rs.ey = w.y;
+          setRectDraw({ x1: rs.sx, y1: rs.sy, x2: w.x, y2: w.y });
+        }
         return;
       }
 
@@ -488,15 +493,23 @@ export default function App() {
       const s = stateRef.current;
       const g = s.gesture;
       if (g?.type === 'rectsel') {
-        const minX = Math.min(g.sx, g.ex), maxX = Math.max(g.sx, g.ex);
-        const minY = Math.min(g.sy, g.ey), maxY = Math.max(g.sy, g.ey);
-        const selected = new Set(
-          s.nodes.filter(n => n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY).map(n => n.id)
-        );
-        if (selected.size > 0) {
-          baseNodesRef.current = s.nodes.map(n => ({...n}));
-          setSliderFs(0); setSliderW(0); setSliderH(0);
-          setMultiSel(selected);
+        const rs = rectSelRef.current;
+        if (rs) {
+          const minX = Math.min(rs.sx, rs.ex), maxX = Math.max(rs.sx, rs.ex);
+          const minY = Math.min(rs.sy, rs.ey), maxY = Math.max(rs.sy, rs.ey);
+          // Intersection boîte : sélectionne si le nœud touche le rect
+          const selected = new Set(
+            s.nodes.filter(n =>
+              n.x - n.w/2 < maxX && n.x + n.w/2 > minX &&
+              n.y - n.h/2 < maxY && n.y + n.h/2 > minY
+            ).map(n => n.id)
+          );
+          if (selected.size > 0) {
+            baseNodesRef.current = s.nodes.map(n => ({...n}));
+            setSliderFs(0); setSliderW(0); setSliderH(0);
+            setMultiSel(selected);
+          }
+          rectSelRef.current = null;
         }
         setRectDraw(null);
       }
