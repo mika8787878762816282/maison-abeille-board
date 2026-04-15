@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import ParcoursMindMap from "./ParcoursMindMap.jsx";
 
 const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316'];
 let UID = 10;
@@ -185,6 +186,7 @@ export default function App() {
   const [editVal, setEditVal] = useState('');
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 1000, h: 800 });
   const [uploading, setUploading] = useState(false);
+  const [tab, setTab] = useState('mindmap');
 
   const svgRef    = useRef(null);
   const inputRef  = useRef(null);
@@ -706,6 +708,19 @@ export default function App() {
         padding:'5px 8px', boxShadow:'0 3px 20px rgba(0,0,0,0.15)',
         maxWidth:'calc(100vw - 12px)', justifyContent:'center'
       }}>
+        {/* ── Onglets ── */}
+        {[{k:'mindmap',l:'⬡ Map'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
+          <button key={b.k} onClick={() => setTab(b.k)} style={{
+            background: tab===b.k ? '#f5c540' : T.btnBg,
+            color: tab===b.k ? '#1a1a1a' : T.btnTxt,
+            border: 'none', borderRadius: 7, padding: '5px 11px',
+            fontSize: 12, cursor: 'pointer',
+            fontWeight: tab===b.k ? '700' : 'normal',
+            whiteSpace: 'nowrap',
+          }}>{b.l}</button>
+        ))}
+        <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+
         {[{k:'select',l:'↖'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}].map(b => (
           <button key={b.k} onClick={() => { setMode(b.k); setConn(null); setSelAll(false); }} style={{
             background: mode===b.k ? '#4b5ce8' : T.btnBg,
@@ -1034,6 +1049,14 @@ export default function App() {
         </button>,
         document.body
       )}
+
+      {/* ── Onglet Parcours MA — toujours monté, juste caché ── */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 20,
+        display: tab === 'parcours' ? 'block' : 'none',
+      }}>
+        <ParcoursMindMap dark={dark} />
+      </div>
     </div>
   );
 }
