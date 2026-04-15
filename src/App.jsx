@@ -187,6 +187,7 @@ export default function App() {
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 1000, h: 800 });
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState('mindmap');
+  const [syncFs, setSyncFs] = useState(true);
 
   // ── État Parcours MA ──
   const [pNodes,    setPNodes]    = useState(P_INIT_NODES);
@@ -224,6 +225,7 @@ export default function App() {
   useEffect(() => { stateRef.current.conn = conn; }, [conn]);
   useEffect(() => { stateRef.current.editId = editId; }, [editId]);
   useEffect(() => { stateRef.current.edges  = edges;  }, [edges]);
+  useEffect(() => { stateRef.current.syncFs = syncFs; }, [syncFs]);
   useEffect(() => { pNodesRef.current = pNodes; }, [pNodes]);
 
   // Load from storage & init viewBox to screen size
@@ -328,7 +330,7 @@ export default function App() {
           const w = toWorld(t.clientX, t.clientY);
           s.gesture = {
             type: 'resize', id: node.id,
-            sx: w.x, sy: w.y, ow: node.w, oh: node.h,
+            sx: w.x, sy: w.y, ow: node.w, oh: node.h, ofs: node.fs || 13,
             lockW: hit.getAttribute('data-lockw') === '1',
             snapSaved: false,
           };
@@ -453,10 +455,14 @@ export default function App() {
         const w = toWorld(t.clientX, t.clientY);
         const dw = w.x - g.sx, dh = w.y - g.sy;
         const id = g.id;
+        const newW = Math.max(80, g.ow + dw);
+        const newH = Math.max(36, g.oh + dh);
+        const scaleF = g.lockW ? newH / g.oh : (newW / g.ow + newH / g.oh) / 2;
         setNodes(p => p.map(n => n.id === id ? {
           ...n,
-          w: g.lockW ? n.w : Math.max(80, g.ow + dw),
-          h: Math.max(36, g.oh + dh),
+          w: g.lockW ? n.w : newW,
+          h: newH,
+          ...(s.syncFs ? { fs: Math.max(6, Math.min(40, Math.round(g.ofs * scaleF))) } : {}),
         } : n));
         return;
       }
@@ -861,6 +867,14 @@ export default function App() {
           fontSize:12, cursor:'pointer', fontWeight: activeSelAll ? '600':'normal',
           whiteSpace:'nowrap'
         }}>⊞ Tout</button>
+        <button onClick={() => setSyncFs(v => !v)} title="Synchro taille texte / case" style={{
+          background: syncFs ? 'rgba(32,201,151,0.18)' : T.btnBg,
+          color: syncFs ? '#20c997' : T.sub,
+          border: syncFs ? '1px solid rgba(32,201,151,0.5)' : `1px solid ${T.bBorder}`,
+          borderRadius:7, padding:'5px 9px',
+          fontSize:11, cursor:'pointer', whiteSpace:'nowrap',
+          fontWeight: syncFs ? '700' : 'normal',
+        }}>⇔A {syncFs ? 'ON' : 'OFF'}</button>
 
         {tab === 'mindmap' && selNode && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
@@ -1197,7 +1211,7 @@ export default function App() {
         position: 'absolute', inset: 0, zIndex: 20,
         display: tab === 'parcours' ? 'block' : 'none',
       }}>
-        <ParcoursMindMap dark={dark} nodes={pNodes} setNodes={setPNodes} onBeforeChange={pSaveSnap} />
+        <ParcoursMindMap dark={dark} nodes={pNodes} setNodes={setPNodes} onBeforeChange={pSaveSnap} syncFs={syncFs} />
       </div>
     </div>
   );

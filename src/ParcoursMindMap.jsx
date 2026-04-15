@@ -275,7 +275,7 @@ function borderPt(n, tx, ty) {
   return { x: n.x + dx * t, y: n.y + dy * t };
 }
 
-export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange }) {
+export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange, syncFs }) {
   const svgRef   = useRef(null);
   const inputRef = useRef(null);
 
@@ -302,6 +302,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange 
   useEffect(() => { stateRef.current.sel     = sel;     }, [sel]);
   useEffect(() => { stateRef.current.editId  = editId;  }, [editId]);
   useEffect(() => { stateRef.current.onBeforeChange = onBeforeChange; }, [onBeforeChange]);
+  useEffect(() => { stateRef.current.syncFs = syncFs; }, [syncFs]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -377,7 +378,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange 
           const wp = toWorld(pts[0].clientX, pts[0].clientY);
           s.gesture = {
             type: 'resize', nodeId: rh.nodeId,
-            sx: wp.x, sy: wp.y, ow: node.w, oh: node.h,
+            sx: wp.x, sy: wp.y, ow: node.w, oh: node.h, ofs: node.fs || 10,
             lockW: rh.lockW, snapSaved: false,
           };
         }
@@ -439,10 +440,15 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange 
         }
         const wp = toWorld(pts[0].clientX, pts[0].clientY);
         const dw = wp.x - s.gesture.sx, dh = wp.y - s.gesture.sy;
-        setNodes(p => p.map(n => n.id === s.gesture.nodeId ? {
+        const g = s.gesture;
+        const newW = Math.max(80, g.ow + dw);
+        const newH = Math.max(24, g.oh + dh);
+        const scaleF = g.lockW ? newH / g.oh : (newW / g.ow + newH / g.oh) / 2;
+        setNodes(p => p.map(n => n.id === g.nodeId ? {
           ...n,
-          w: s.gesture.lockW ? n.w : Math.max(80, s.gesture.ow + dw),
-          h: Math.max(24, s.gesture.oh + dh),
+          w: g.lockW ? n.w : newW,
+          h: newH,
+          ...(s.syncFs ? { fs: Math.max(6, Math.min(40, Math.round(g.ofs * scaleF))) } : {}),
         } : n));
       }
     };
