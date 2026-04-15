@@ -195,6 +195,14 @@ export default function App() {
   const [pSliderW,  setPSliderW]  = useState(0);
   const [pSliderH,  setPSliderH]  = useState(0);
   const pBaseNodesRef = useRef(null);
+  const pNodesRef = useRef(pNodes);
+
+  // ── Undo / Redo ──
+  const undoRef  = useRef([]);
+  const redoRef  = useRef([]);
+  const pUndoRef = useRef([]);
+  const pRedoRef = useRef([]);
+  const [histVer, setHistVer] = useState(0);
 
   const svgRef    = useRef(null);
   const inputRef  = useRef(null);
@@ -215,6 +223,8 @@ export default function App() {
   useEffect(() => { stateRef.current.mode = mode; }, [mode]);
   useEffect(() => { stateRef.current.conn = conn; }, [conn]);
   useEffect(() => { stateRef.current.editId = editId; }, [editId]);
+  useEffect(() => { stateRef.current.edges  = edges;  }, [edges]);
+  useEffect(() => { pNodesRef.current = pNodes; }, [pNodes]);
 
   // Load from storage & init viewBox to screen size
   useEffect(() => {
@@ -224,6 +234,7 @@ export default function App() {
         setEdges(d.edges || []);
         setDark(!!d.dark);
         if (d.edgeColor) setEdgeColor(d.edgeColor);
+        if (d.pNodes?.length) setPNodes(d.pNodes);
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
         UID = mx + 1;
       }
@@ -239,9 +250,9 @@ export default function App() {
   // Auto-save
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => save({ nodes, edges, dark, viewBox, edgeColor }), 500);
+    const t = setTimeout(() => save({ nodes, edges, dark, viewBox, edgeColor, pNodes }), 500);
     return () => clearTimeout(t);
-  }, [nodes, edges, dark, viewBox, edgeColor, ready]);
+  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, ready]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -306,7 +317,7 @@ export default function App() {
         const node = s.nodes.find(n => n.id === hit.getAttribute('data-id'));
         if (node) {
           const w = toWorld(t.clientX, t.clientY);
-          s.gesture = { type: 'move', id: node.id, ox: w.x - node.x, oy: w.y - node.y };
+          s.gesture = { type: 'move', id: node.id, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
         }
         return;
       }
@@ -319,6 +330,7 @@ export default function App() {
             type: 'resize', id: node.id,
             sx: w.x, sy: w.y, ow: node.w, oh: node.h,
             lockW: hit.getAttribute('data-lockw') === '1',
+            snapSaved: false,
           };
         }
         return;
@@ -339,6 +351,7 @@ export default function App() {
             setConn(nodeId);
           } else if (s.conn !== nodeId) {
             const from = s.conn;
+            s.saveSnap?.();
             setEdges(p => {
               const dup = p.find(e =>
                 (e.from === from && e.to === nodeId) ||
@@ -356,12 +369,13 @@ export default function App() {
           setSel(nodeId);
           setSelEdge(null);
           const w = toWorld(t.clientX, t.clientY);
-          s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y };
+          s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
         }
         return;
       }
 
       if (s.mode === 'add') {
+        s.saveSnap?.();
         const w = toWorld(t.clientX, t.clientY);
         const color = PAL[Math.floor(Math.random() * PAL.length)];
         const nn = { id: gid(), x: w.x, y: w.y, w: 140, h: 48, text: 'Nouveau', color, fs: 14 };
@@ -425,6 +439,7 @@ export default function App() {
       }
 
       if (g.type === 'move' && points.length >= 1) {
+        if (!g.snapSaved) { s.saveSnap?.(); g.snapSaved = true; }
         const t = points[0];
         const w = toWorld(t.clientX, t.clientY);
         const id = g.id;
@@ -433,6 +448,7 @@ export default function App() {
       }
 
       if (g.type === 'resize' && points.length >= 1) {
+        if (!g.snapSaved) { s.saveSnap?.(); g.snapSaved = true; }
         const t = points[0];
         const w = toWorld(t.clientX, t.clientY);
         const dw = w.x - g.sx, dh = w.y - g.sy;
@@ -651,8 +667,66 @@ export default function App() {
     }));
   };
 
+  // ── Undo / Redo ──────────────────────────────────────────────
+  const saveSnap = () => {
+    undoRef.current = [...undoRef.current, {
+      nodes: stateRef.current.nodes.map(n => ({...n})),
+      edges: stateRef.current.edges ? [...stateRef.current.edges] : [],
+    }].slice(-50);
+    redoRef.current = [];
+    setHistVer(v => v + 1);
+  };
+  const pSaveSnap = () => {
+    pUndoRef.current = [...pUndoRef.current, pNodesRef.current.map(n => ({...n}))].slice(-50);
+    pRedoRef.current = [];
+    setHistVer(v => v + 1);
+  };
+  stateRef.current.saveSnap = saveSnap;
+
+  const undo = () => {
+    if (!undoRef.current.length) return;
+    const snap = undoRef.current[undoRef.current.length - 1];
+    undoRef.current = undoRef.current.slice(0, -1);
+    redoRef.current = [...redoRef.current, {
+      nodes: stateRef.current.nodes.map(n => ({...n})),
+      edges: stateRef.current.edges ? [...stateRef.current.edges] : [],
+    }];
+    setNodes(snap.nodes);
+    setEdges(snap.edges);
+    setHistVer(v => v + 1);
+  };
+  const redo = () => {
+    if (!redoRef.current.length) return;
+    const snap = redoRef.current[redoRef.current.length - 1];
+    redoRef.current = redoRef.current.slice(0, -1);
+    undoRef.current = [...undoRef.current, {
+      nodes: stateRef.current.nodes.map(n => ({...n})),
+      edges: stateRef.current.edges ? [...stateRef.current.edges] : [],
+    }];
+    setNodes(snap.nodes);
+    setEdges(snap.edges);
+    setHistVer(v => v + 1);
+  };
+  const pUndo = () => {
+    if (!pUndoRef.current.length) return;
+    const snap = pUndoRef.current[pUndoRef.current.length - 1];
+    pUndoRef.current = pUndoRef.current.slice(0, -1);
+    pRedoRef.current = [...pRedoRef.current, pNodesRef.current.map(n => ({...n}))];
+    setPNodes(snap);
+    setHistVer(v => v + 1);
+  };
+  const pRedo = () => {
+    if (!pRedoRef.current.length) return;
+    const snap = pRedoRef.current[pRedoRef.current.length - 1];
+    pRedoRef.current = pRedoRef.current.slice(0, -1);
+    pUndoRef.current = [...pUndoRef.current, pNodesRef.current.map(n => ({...n}))];
+    setPNodes(snap);
+    setHistVer(v => v + 1);
+  };
+
   const delSel = () => {
     if (!sel) return;
+    saveSnap();
     setNodes(p => p.filter(n => n.id !== sel));
     setEdges(p => p.filter(e => e.from !== sel && e.to !== sel));
     setSel(null);
@@ -811,7 +885,7 @@ export default function App() {
             }}>A+</button>
             <div style={{display:'flex',gap:3,alignItems:'center'}}>
               {PAL.map(c => (
-                <div key={c} onClick={() => setNodes(p => p.map(n => n.id===sel?{...n,color:c}:n))}
+                <div key={c} onClick={() => { saveSnap(); setNodes(p => p.map(n => n.id===sel?{...n,color:c}:n)); }}
                   style={{
                     width:16, height:16, borderRadius:4, background:c, cursor:'pointer',
                     border: selNode.color===c ? `2px solid ${dark?'#fff':'#222'}` : '2px solid transparent',
@@ -863,6 +937,7 @@ export default function App() {
             ))}
           </div>
           <button onClick={() => {
+            saveSnap();
             setEdges(p => p.filter(e => e.id !== selEdge));
             setSelEdge(null);
           }} style={{
@@ -871,6 +946,26 @@ export default function App() {
           }}>✕</button>
         </>}
 
+        <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+        {/* Undo / Redo */}
+        {(() => {
+          const canUndo = tab === 'mindmap' ? undoRef.current.length > 0 : pUndoRef.current.length > 0;
+          const canRedo = tab === 'mindmap' ? redoRef.current.length > 0 : pRedoRef.current.length > 0;
+          const doUndo  = tab === 'mindmap' ? undo : pUndo;
+          const doRedo  = tab === 'mindmap' ? redo : pRedo;
+          return (<>
+            <button onClick={doUndo} title="Annuler" style={{
+              background:T.btnBg, color:T.btnTxt, border:'none',
+              borderRadius:7, padding:'5px 9px', fontSize:13, cursor: canUndo ? 'pointer' : 'default',
+              opacity: canUndo ? 1 : 0.3, whiteSpace:'nowrap',
+            }}>←</button>
+            <button onClick={doRedo} title="Rétablir" style={{
+              background:T.btnBg, color:T.btnTxt, border:'none',
+              borderRadius:7, padding:'5px 9px', fontSize:13, cursor: canRedo ? 'pointer' : 'default',
+              opacity: canRedo ? 1 : 0.3, whiteSpace:'nowrap',
+            }}>→</button>
+          </>);
+        })()}
         <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
         <button onClick={() => zoomBy(1.25)} style={{
           background:T.btnBg, color:T.btnTxt, border:'none',
@@ -1111,7 +1206,7 @@ export default function App() {
         position: 'absolute', inset: 0, zIndex: 20,
         display: tab === 'parcours' ? 'block' : 'none',
       }}>
-        <ParcoursMindMap dark={dark} nodes={pNodes} setNodes={setPNodes} />
+        <ParcoursMindMap dark={dark} nodes={pNodes} setNodes={setPNodes} onBeforeChange={pSaveSnap} />
       </div>
     </div>
   );

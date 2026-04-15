@@ -20,8 +20,22 @@ const C = {
 };
 
 const PAL_P = [
-  '#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316',
-  C.mg, C.dep, C.chir, C.scan, C.asst, C.toos, C.derm, C.nsp, C.admin,
+  // Jaunes/oranges
+  '#f5c540','#fbbf24','#f97316','#fb923c',
+  // Verts
+  '#4ade80','#20c997','#10b981','#166534',
+  // Bleus
+  '#38bdf8','#4b5ce8','#1e40af','#075985','#0c4a6e',
+  // Violets/roses
+  '#a855f7','#7c3aed','#5b21b6','#4c1d95','#db2777',
+  // Rouges
+  '#e85555','#b91c1c','#991b1b','#7c2d12',
+  // Bruns/ambre
+  '#b45309','#92400e','#78350f',
+  // Neutres
+  '#334155','#475569','#64748b','#94a3b8',
+  // Très clair / très foncé
+  '#e2e8f0','#1e293b',
 ];
 
 // ── Nœuds initiaux (x/y = centre) ─────────────────────────────
@@ -261,7 +275,7 @@ function borderPt(n, tx, ty) {
   return { x: n.x + dx * t, y: n.y + dy * t };
 }
 
-export default function ParcoursMindMap({ dark, nodes, setNodes }) {
+export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange }) {
   const svgRef   = useRef(null);
   const inputRef = useRef(null);
 
@@ -281,11 +295,13 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
     editId:   null,
     gesture:  null,
     lastTap:  { nodeId: null, time: 0 },
+    onBeforeChange: null,
   });
   useEffect(() => { stateRef.current.viewBox = viewBox; }, [viewBox]);
   useEffect(() => { stateRef.current.nodes   = nodes;   }, [nodes]);
   useEffect(() => { stateRef.current.sel     = sel;     }, [sel]);
   useEffect(() => { stateRef.current.editId  = editId;  }, [editId]);
+  useEffect(() => { stateRef.current.onBeforeChange = onBeforeChange; }, [onBeforeChange]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -295,7 +311,10 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
     const id = stateRef.current.editId;
     if (!id) return;
     const val = editValRef.current.trim();
-    if (val) setNodes(p => p.map(n => n.id === id ? { ...n, text: val } : n));
+    if (val) {
+      stateRef.current.onBeforeChange?.();
+      setNodes(p => p.map(n => n.id === id ? { ...n, text: val } : n));
+    }
     setEditId(null);
   };
 
@@ -316,7 +335,20 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
     const hitNode = (target) => {
       let el = target;
       while (el && el !== svg) {
-        if (el.getAttribute?.('data-nid')) return el.getAttribute('data-nid');
+        const role = el.getAttribute?.('data-role');
+        if (role === 'resize') return null;
+        if (role === 'node') return el.getAttribute('data-nid');
+        el = el.parentNode;
+      }
+      return null;
+    };
+
+    const hitResize = (target) => {
+      let el = target;
+      while (el && el !== svg) {
+        if (el.getAttribute?.('data-role') === 'resize') {
+          return { nodeId: el.getAttribute('data-nid'), lockW: el.getAttribute('data-lockw') === '1' };
+        }
         el = el.parentNode;
       }
       return null;
@@ -338,6 +370,20 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
         return;
       }
 
+      const rh = hitResize(target);
+      if (rh) {
+        const node = s.nodes.find(n => n.id === rh.nodeId);
+        if (node) {
+          const wp = toWorld(pts[0].clientX, pts[0].clientY);
+          s.gesture = {
+            type: 'resize', nodeId: rh.nodeId,
+            sx: wp.x, sy: wp.y, ow: node.w, oh: node.h,
+            lockW: rh.lockW, snapSaved: false,
+          };
+        }
+        return;
+      }
+
       const nodeId = hitNode(target);
       if (nodeId) {
         setSel(nodeId);
@@ -346,7 +392,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
         s.gesture  = {
           type: 'drag', nodeId,
           ox: node.x - wp.x, oy: node.y - wp.y,
-          hasMoved: false, t0: Date.now(),
+          hasMoved: false, t0: Date.now(), snapSaved: false,
         };
       } else {
         setSel(null);
@@ -378,10 +424,26 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
         const dy   = (s.gesture.sy - pts[0].clientY) / rect.height * s.gesture.vb0.h;
         setViewBox({ ...s.gesture.vb0, x: s.gesture.vb0.x + dx, y: s.gesture.vb0.y + dy });
       } else if (s.gesture.type === 'drag') {
+        if (!s.gesture.snapSaved) {
+          s.onBeforeChange?.();
+          s.gesture.snapSaved = true;
+        }
         const wp = toWorld(pts[0].clientX, pts[0].clientY);
         s.gesture.hasMoved = true;
         setNodes(p => p.map(n => n.id === s.gesture.nodeId
           ? { ...n, x: wp.x + s.gesture.ox, y: wp.y + s.gesture.oy } : n));
+      } else if (s.gesture.type === 'resize') {
+        if (!s.gesture.snapSaved) {
+          s.onBeforeChange?.();
+          s.gesture.snapSaved = true;
+        }
+        const wp = toWorld(pts[0].clientX, pts[0].clientY);
+        const dw = wp.x - s.gesture.sx, dh = wp.y - s.gesture.sy;
+        setNodes(p => p.map(n => n.id === s.gesture.nodeId ? {
+          ...n,
+          w: s.gesture.lockW ? n.w : Math.max(80, s.gesture.ow + dw),
+          h: Math.max(24, s.gesture.oh + dh),
+        } : n));
       }
     };
 
@@ -506,25 +568,41 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
           const totalH  = lines.length * lh;
           const isSel   = n.id === sel;
           return (
-            <g key={n.id} data-nid={n.id}>
-              <rect
-                x={n.x - n.w / 2} y={n.y - n.h / 2}
-                width={n.w} height={n.h} rx={7} ry={7}
-                fill={n.color} opacity={0.93}
-                stroke={isSel ? '#fff' : 'none'}
-                strokeWidth={isSel ? 2.5 : 0}
-              />
-              {lines.map((line, i) => (
-                <text key={i}
-                  x={n.x}
-                  y={n.y - totalH / 2 + lh * i + lh * 0.72}
-                  textAnchor="middle" fill="#fff"
-                  fontSize={n.fs || 10}
-                  fontWeight={n.bold ? '700' : '600'}
-                  fontFamily="system-ui, -apple-system, sans-serif"
-                  style={{ pointerEvents: 'none' }}
-                >{line}</text>
-              ))}
+            <g key={n.id}>
+              <g data-role="node" data-nid={n.id}>
+                <rect
+                  x={n.x - n.w / 2} y={n.y - n.h / 2}
+                  width={n.w} height={n.h} rx={7} ry={7}
+                  fill={n.color} opacity={0.93}
+                  stroke={isSel ? '#fff' : 'none'}
+                  strokeWidth={isSel ? 2.5 : 0}
+                />
+                {lines.map((line, i) => (
+                  <text key={i}
+                    x={n.x}
+                    y={n.y - totalH / 2 + lh * i + lh * 0.72}
+                    textAnchor="middle" fill="#fff"
+                    fontSize={n.fs || 10}
+                    fontWeight={n.bold ? '700' : '600'}
+                    fontFamily="system-ui, -apple-system, sans-serif"
+                    style={{ pointerEvents: 'none' }}
+                  >{line}</text>
+                ))}
+              </g>
+              {isSel && (<>
+                <g data-role="resize" data-nid={n.id} data-lockw="1">
+                  <rect x={n.x - 22} y={n.y + n.h/2 - 5} width={44} height={13} rx={5}
+                    fill="rgba(255,255,255,0.92)" stroke="rgba(0,0,0,0.2)" strokeWidth="0.7"/>
+                  <line x1={n.x - 10} y1={n.y + n.h/2 + 1.5} x2={n.x + 10} y2={n.y + n.h/2 + 1.5}
+                    stroke="#444" strokeWidth="2" strokeLinecap="round"/>
+                </g>
+                <g data-role="resize" data-nid={n.id} data-lockw="0">
+                  <rect x={n.x + n.w/2 - 21} y={n.y + n.h/2 - 21} width={21} height={21} rx={5}
+                    fill="rgba(255,255,255,0.95)" stroke="rgba(0,0,0,0.2)" strokeWidth="0.7"/>
+                  <text x={n.x + n.w/2 - 10.5} y={n.y + n.h/2 - 5.5} textAnchor="middle"
+                    fontSize="14" fill="#333" fontWeight="bold" style={{pointerEvents:'none'}}>⤡</text>
+                </g>
+              </>)}
             </g>
           );
         })}
@@ -575,6 +653,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
               <div key={c}
                 onMouseDown={e => {
                   e.stopPropagation();
+                  stateRef.current.onBeforeChange?.();
                   setNodes(p => p.map(n => n.id === sel ? { ...n, color: c } : n));
                 }}
                 style={{
@@ -589,6 +668,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes }) {
             <button
               onMouseDown={e => {
                 e.stopPropagation();
+                stateRef.current.onBeforeChange?.();
                 setNodes(p => p.filter(n => n.id !== sel));
                 setSel(null);
               }}
