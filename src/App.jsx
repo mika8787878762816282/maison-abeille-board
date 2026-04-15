@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import ParcoursMindMap from "./ParcoursMindMap.jsx";
+import ParcoursMindMap, { INIT_NODES as P_INIT_NODES } from "./ParcoursMindMap.jsx";
 
 const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316'];
 let UID = 10;
@@ -187,6 +187,14 @@ export default function App() {
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 1000, h: 800 });
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState('mindmap');
+
+  // ── État Parcours MA ──
+  const [pNodes,    setPNodes]    = useState(P_INIT_NODES);
+  const [pSelAll,   setPSelAll]   = useState(false);
+  const [pSliderFs, setPSliderFs] = useState(0);
+  const [pSliderW,  setPSliderW]  = useState(0);
+  const [pSliderH,  setPSliderH]  = useState(0);
+  const pBaseNodesRef = useRef(null);
 
   const svgRef    = useRef(null);
   const inputRef  = useRef(null);
@@ -609,6 +617,40 @@ export default function App() {
     }));
   };
 
+  // ── Fonctions slider Parcours MA ──
+  const activatePSelAll = () => {
+    pBaseNodesRef.current = pNodes.map(n => ({ ...n }));
+    setPSliderFs(0); setPSliderW(0); setPSliderH(0);
+    setPSelAll(true);
+  };
+  const onPSliderFs = (val) => {
+    setPSliderFs(val);
+    const base = pBaseNodesRef.current;
+    if (!base) return;
+    setPNodes(p => p.map(n => {
+      const b = base.find(b => b.id === n.id);
+      return b ? { ...n, fs: Math.max(6, Math.min(40, (b.fs || 10) + val)) } : n;
+    }));
+  };
+  const onPSliderW = (val) => {
+    setPSliderW(val);
+    const base = pBaseNodesRef.current;
+    if (!base) return;
+    setPNodes(p => p.map(n => {
+      const b = base.find(b => b.id === n.id);
+      return b ? { ...n, w: Math.max(60, b.w + val) } : n;
+    }));
+  };
+  const onPSliderH = (val) => {
+    setPSliderH(val);
+    const base = pBaseNodesRef.current;
+    if (!base) return;
+    setPNodes(p => p.map(n => {
+      const b = base.find(b => b.id === n.id);
+      return b ? { ...n, h: Math.max(24, b.h + val) } : n;
+    }));
+  };
+
   const delSel = () => {
     if (!sel) return;
     setNodes(p => p.filter(n => n.id !== sel));
@@ -681,6 +723,18 @@ export default function App() {
 
   const selNode = nodes.find(n => n.id === sel);
 
+  // ── Vars actives selon l'onglet ──
+  const activeSelAll     = tab === 'mindmap' ? selAll     : pSelAll;
+  const activeSliderFs   = tab === 'mindmap' ? sliderFs   : pSliderFs;
+  const activeSliderW    = tab === 'mindmap' ? sliderW    : pSliderW;
+  const activeSliderH    = tab === 'mindmap' ? sliderH    : pSliderH;
+  const doToggleSelAll   = tab === 'mindmap'
+    ? () => { selAll  ? setSelAll(false)  : activateSelAll(); }
+    : () => { pSelAll ? setPSelAll(false) : activatePSelAll(); };
+  const doSliderFs = tab === 'mindmap' ? onSliderFs  : onPSliderFs;
+  const doSliderW  = tab === 'mindmap' ? onSliderW   : onPSliderW;
+  const doSliderH  = tab === 'mindmap' ? onSliderH   : onPSliderH;
+
   if (!ready) return (
     <div style={{ display:'flex',alignItems:'center',justifyContent:'center',
       height:'100vh', background:'#0e0e1a', color:'#555', fontFamily:'system-ui' }}>
@@ -721,7 +775,9 @@ export default function App() {
         ))}
         <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
 
-        {[{k:'select',l:'↖'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}].map(b => (
+        {tab === 'mindmap' && [
+          {k:'select',l:'↖'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}
+        ].map(b => (
           <button key={b.k} onClick={() => { setMode(b.k); setConn(null); setSelAll(false); }} style={{
             background: mode===b.k ? '#4b5ce8' : T.btnBg,
             color: mode===b.k ? '#fff' : T.btnTxt,
@@ -730,15 +786,15 @@ export default function App() {
             whiteSpace:'nowrap', minWidth:28
           }}>{b.l}</button>
         ))}
-        <button onClick={() => { selAll ? (setSelAll(false)) : activateSelAll(); }} style={{
-          background: selAll ? '#f97316' : T.btnBg,
-          color: selAll ? '#fff' : T.btnTxt,
+        <button onClick={doToggleSelAll} style={{
+          background: activeSelAll ? '#f97316' : T.btnBg,
+          color: activeSelAll ? '#fff' : T.btnTxt,
           border:'none', borderRadius:7, padding:'5px 10px',
-          fontSize:12, cursor:'pointer', fontWeight: selAll ? '600':'normal',
+          fontSize:12, cursor:'pointer', fontWeight: activeSelAll ? '600':'normal',
           whiteSpace:'nowrap'
         }}>⊞ Tout</button>
 
-        {selNode && <>
+        {tab === 'mindmap' && selNode && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
           {!selNode.imageUrl && <>
             <button onClick={() => openEdit(selNode.id)} style={{
@@ -772,28 +828,28 @@ export default function App() {
           )}
         </>}
 
-        {selAll && <>
+        {activeSelAll && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <span style={{color:T.sub, fontSize:10, minWidth:28}}>A {sliderFs > 0 ? '+' : ''}{sliderFs}</span>
-          <input type="range" min={-8} max={14} step={1} value={sliderFs}
-            onChange={e => onSliderFs(Number(e.target.value))}
+          <span style={{color:T.sub, fontSize:10, minWidth:28}}>A {activeSliderFs > 0 ? '+' : ''}{activeSliderFs}</span>
+          <input type="range" min={-8} max={14} step={1} value={activeSliderFs}
+            onChange={e => doSliderFs(Number(e.target.value))}
             style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
           />
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <span style={{color:T.sub, fontSize:10, minWidth:36}}>W {sliderW > 0 ? '+' : ''}{sliderW}</span>
-          <input type="range" min={-100} max={200} step={5} value={sliderW}
-            onChange={e => onSliderW(Number(e.target.value))}
+          <span style={{color:T.sub, fontSize:10, minWidth:36}}>W {activeSliderW > 0 ? '+' : ''}{activeSliderW}</span>
+          <input type="range" min={-100} max={200} step={5} value={activeSliderW}
+            onChange={e => doSliderW(Number(e.target.value))}
             style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
           />
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
-          <span style={{color:T.sub, fontSize:10, minWidth:36}}>H {sliderH > 0 ? '+' : ''}{sliderH}</span>
-          <input type="range" min={-20} max={80} step={2} value={sliderH}
-            onChange={e => onSliderH(Number(e.target.value))}
+          <span style={{color:T.sub, fontSize:10, minWidth:36}}>H {activeSliderH > 0 ? '+' : ''}{activeSliderH}</span>
+          <input type="range" min={-20} max={80} step={2} value={activeSliderH}
+            onChange={e => doSliderH(Number(e.target.value))}
             style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
           />
         </>}
 
-        {selEdge && <>
+        {tab === 'mindmap' && selEdge && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
           <span style={{color:T.sub, fontSize:10, marginRight:2}}>lien</span>
           <div style={{display:'flex',gap:3,alignItems:'center'}}>
@@ -1055,7 +1111,7 @@ export default function App() {
         position: 'absolute', inset: 0, zIndex: 20,
         display: tab === 'parcours' ? 'block' : 'none',
       }}>
-        <ParcoursMindMap dark={dark} />
+        <ParcoursMindMap dark={dark} nodes={pNodes} setNodes={setPNodes} />
       </div>
     </div>
   );

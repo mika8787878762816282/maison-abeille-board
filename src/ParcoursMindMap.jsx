@@ -25,7 +25,7 @@ const PAL_P = [
 ];
 
 // ── Nœuds initiaux (x/y = centre) ─────────────────────────────
-const INIT_NODES = [
+export const INIT_NODES = [
   // ── TITRE ─────────────────────────────────────────────────────
   { id:'title', x:1165, y:48,  w:900, h:52,
     text:'EXPLICATION DES PARCOURS — MAISON ABEILLE', color:C.entry, fs:13, bold:true },
@@ -261,11 +261,11 @@ function borderPt(n, tx, ty) {
   return { x: n.x + dx * t, y: n.y + dy * t };
 }
 
-export default function ParcoursMindMap({ dark }) {
+export default function ParcoursMindMap({ dark, nodes, setNodes }) {
   const svgRef   = useRef(null);
   const inputRef = useRef(null);
 
-  const [nodes,   setNodes]   = useState(INIT_NODES);
+
   const [viewBox, setViewBox] = useState({ x: -60, y: -10, w: 2620, h: 1380 });
   const [sel,     setSel]     = useState(null);
   const [editId,  setEditId]  = useState(null);
