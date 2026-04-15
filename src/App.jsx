@@ -587,12 +587,6 @@ export default function App() {
     return Math.round((rect.width / viewBox.w) * 100);
   };
 
-  const adjFs = (d) => {
-    if (sel) {
-      setNodes(p => p.map(n => n.id === sel ? { ...n, fs: Math.max(9, Math.min(40, (n.fs||13)+d)) } : n));
-    }
-  };
-
   const activateSelAll = () => {
     baseNodesRef.current = nodes.map(n => ({ ...n }));
     setSliderFs(0);
@@ -875,14 +869,11 @@ export default function App() {
               background:T.btnBg, color:'#20c997', border:'none',
               borderRadius:7, padding:'5px 9px', fontSize:11, cursor:'pointer'
             }}>✏</button>
-            <button onClick={() => adjFs(-1)} style={{
-              background:T.btnBg, color:T.btnTxt, border:'none',
-              borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-            }}>A−</button>
-            <button onClick={() => adjFs(1)} style={{
-              background:T.btnBg, color:T.btnTxt, border:'none',
-              borderRadius:7, padding:'5px 8px', fontSize:11, cursor:'pointer', fontWeight:'bold'
-            }}>A+</button>
+            <span style={{color:T.sub, fontSize:10, minWidth:28}}>A {selNode.fs || 13}</span>
+            <input type="range" min={6} max={40} step={1} value={selNode.fs || 13}
+              onChange={e => setNodes(p => p.map(n => n.id === sel ? { ...n, fs: Number(e.target.value) } : n))}
+              style={{width:72, accentColor:'#20c997', cursor:'pointer'}}
+            />
             <div style={{display:'flex',gap:3,alignItems:'center'}}>
               {PAL.map(c => (
                 <div key={c} onClick={() => { saveSnap(); setNodes(p => p.map(n => n.id===sel?{...n,color:c}:n)); }}
