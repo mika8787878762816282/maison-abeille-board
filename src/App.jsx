@@ -239,6 +239,25 @@ const INIT_EDGES = [
   { id:'e57', from:'remise',       to:'mails_chir' },
 ];
 
+function fitToNodes(nds, rect) {
+  if (!nds?.length || !rect?.width || !rect?.height) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nds) {
+    minX = Math.min(minX, n.x - n.w / 2);
+    minY = Math.min(minY, n.y - n.h / 2);
+    maxX = Math.max(maxX, n.x + n.w / 2);
+    maxY = Math.max(maxY, n.y + n.h / 2);
+  }
+  if (!isFinite(minX)) return null;
+  const pad = Math.max(maxX - minX, maxY - minY) * 0.1;
+  const cW = maxX - minX + pad * 2, cH = maxY - minY + pad * 2;
+  const aspect = rect.width / rect.height;
+  let fW, fH;
+  if (cW / cH > aspect) { fW = cW; fH = cW / aspect; }
+  else                   { fH = cH; fW = cH * aspect; }
+  return { x: (minX + maxX) / 2 - fW / 2, y: (minY + maxY) / 2 - fH / 2, w: fW, h: fH };
+}
+
 function borderPt(n, tx, ty) {
   const dx = tx - n.x, dy = ty - n.y;
   if (!dx && !dy) return { x: n.x, y: n.y };
@@ -351,11 +370,10 @@ export default function App() {
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
         UID = mx + 1;
       }
-      const rect = svgRef.current?.getBoundingClientRect();
-      if (rect) {
-        if (d?.viewBox) setViewBox(d.viewBox);
-        else setViewBox({ x: 0, y: 0, w: rect.width, h: rect.height });
-      }
+      const rectFallback = { width: window.innerWidth, height: window.innerHeight };
+      const useNodes = d?.nodes?.length ? d.nodes : INIT_NODES;
+      const fit = fitToNodes(useNodes, rectFallback);
+      setViewBox(fit || { x: 0, y: 0, w: rectFallback.width, h: rectFallback.height });
       setReady(true);
     });
   }, []);
@@ -1634,6 +1652,14 @@ export default function App() {
                     })()}
                   </>
                 )}
+              </g>
+              {/* Handle déplacement — toujours visible, coin haut-gauche */}
+              <g data-role="grip" data-id={node.id} style={{ cursor: 'grab' }}>
+                <rect x={-node.w/2} y={-node.h/2} width={20} height={20} rx={4}
+                  fill="rgba(0,0,0,0.25)" />
+                <text x={-node.w/2+10} y={-node.h/2+11} textAnchor="middle"
+                  fontSize="10" fill="rgba(255,255,255,0.85)"
+                  style={{ pointerEvents:'none', userSelect:'none' }}>⠿</text>
               </g>
               {isSel && (
                 <>
