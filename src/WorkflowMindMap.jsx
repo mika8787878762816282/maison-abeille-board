@@ -12,8 +12,9 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
   const [conn,     setConn]     = useState(null);
   const [multiSel, setMultiSel] = useState(new Set());
   const [rectDraw, setRectDraw] = useState(null);
-  const [sliderFs, setSliderFs] = useState(0);
-  const [histVer,  setHistVer]  = useState(0);
+  const [sliderFs,   setSliderFs]   = useState(0);
+  const [histVer,    setHistVer]    = useState(0);
+  const [clipboard,  setClipboard]  = useState([]);
 
   const baseNodesRef = useRef(null);
   const nodesRef     = useRef(nodes);
@@ -111,6 +112,52 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
     setNodes(snap.nodes); setEdges(snap.edges);
     setHistVer(v => v + 1);
   };
+
+  const copySelected = () => {
+    const ids = multiSel.size > 0 ? multiSel : sel ? new Set([sel]) : new Set();
+    if (!ids.size) return;
+    setClipboard(nodes.filter(n => ids.has(n.id)));
+  };
+
+  const pasteClipboard = () => {
+    if (!clipboard.length) return;
+    saveSnap();
+    const newNodes = clipboard.map(n => ({
+      ...n,
+      id: `wn${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+      x: n.x + 50, y: n.y + 50,
+    }));
+    setNodes(p => [...p, ...newNodes]);
+    setMultiSel(new Set(newNodes.map(n => n.id)));
+  };
+
+  // Clavier : Ctrl+C, Ctrl+V, Ctrl+A, Delete, Escape
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') { e.preventDefault(); copySelected(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') { e.preventDefault(); pasteClipboard(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        baseNodesRef.current = nodesRef.current.map(n => ({...n}));
+        setSliderFs(0);
+        setMultiSel(new Set(nodesRef.current.map(n => n.id)));
+        setSel(null);
+      }
+      if (e.key === 'Escape') { setMultiSel(new Set()); setSel(null); }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const toDelete = multiSel.size > 0 ? multiSel : sel ? new Set([sel]) : null;
+        if (!toDelete) return;
+        saveSnap();
+        setNodes(p => p.filter(n => !toDelete.has(n.id)));
+        setEdges(p => p.filter(e => !toDelete.has(e.from) && !toDelete.has(e.to)));
+        setMultiSel(new Set()); setSel(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [multiSel, sel, nodes, edges, clipboard]);
 
   const handleAddNode = (wx, wy) => {
     saveSnap();
@@ -211,6 +258,21 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
         </>}
 
         <div style={{width:1,height:16,background:T.bBorder,margin:'0 2px'}}/>
+        <button onClick={copySelected} title="Copier (Ctrl+C)" style={{
+          background: clipboard.length ? 'rgba(32,201,151,0.15)' : T.btnBg,
+          color: clipboard.length ? '#20c997' : T.btnTxt,
+          border:'none',borderRadius:7,padding:'4px 8px',fontSize:12,
+          cursor: (multiSel.size > 0 || sel) ? 'pointer' : 'default',
+          opacity: (multiSel.size > 0 || sel) ? 1 : 0.35,
+        }}>⎘</button>
+        <button onClick={pasteClipboard} title="Coller (Ctrl+V)" style={{
+          background: T.btnBg, color: T.btnTxt,
+          border:'none',borderRadius:7,padding:'4px 8px',fontSize:12,
+          cursor: clipboard.length ? 'pointer' : 'default',
+          opacity: clipboard.length ? 1 : 0.35,
+        }}>⎗</button>
+
+        <div style={{width:1,height:16,background:T.bBorder,margin:'0 2px'}}/>
         <button onClick={undo} style={{
           background:T.btnBg,color:T.btnTxt,border:'none',borderRadius:7,
           padding:'4px 8px',fontSize:13,cursor:undoRef.current.length?'pointer':'default',
@@ -244,8 +306,10 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
         nodes={nodes}    setNodes={setNodes}
         edges={edges}    setEdges={setEdges}
         onBeforeChange={saveSnap} syncFs={true}
-        viewBox={viewBox} setViewBox={setViewBox}
-        sel={sel}  setSel={setSel}
+        viewBox={viewBox}   setViewBox={setViewBox}
+        sel={sel}           setSel={setSel}
+        multiSel={multiSel} rectDraw={rectDraw}
+        addMode={mode==='add'} onAddNode={handleAddNode}
         connectMode={mode==='connect'} conn={conn}
         onConnNode={(nodeId) => {
           if (!conn) {
@@ -262,8 +326,6 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
             setConn(null); setMode('select');
           }
         }}
-        addMode={mode==='add'} onAddNode={handleAddNode}
-        multiSel={multiSel} rectDraw={rectDraw}
       />
 
       {mode==='add' && (

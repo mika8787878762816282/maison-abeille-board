@@ -275,37 +275,57 @@ function borderPt(n, tx, ty) {
   return { x: n.x + dx * t, y: n.y + dy * t };
 }
 
-export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange, syncFs, edges, setEdges, connectMode, conn, onConnNode }) {
+export default function ParcoursMindMap({
+  dark, nodes, setNodes, onBeforeChange, syncFs,
+  edges, setEdges, connectMode, conn, onConnNode,
+  // contrôle externe optionnel
+  viewBox: extViewBox, setViewBox: extSetViewBox,
+  sel: extSel, setSel: extSetSel,
+  addMode, onAddNode,
+  multiSel = new Set(), rectDraw,
+}) {
   const svgRef   = useRef(null);
   const inputRef = useRef(null);
 
+  const INIT_VB = { x: -60, y: -10, w: 2620, h: 1380 };
+  const [_viewBox, _setViewBox] = useState(extViewBox || INIT_VB);
+  const [_sel,     _setSel]     = useState(extSel    || null);
+  const [editId,   setEditId]   = useState(null);
+  const [editVal,  setEditVal]  = useState('');
 
-  const [viewBox, setViewBox] = useState({ x: -60, y: -10, w: 2620, h: 1380 });
-  const [sel,     setSel]     = useState(null);
-  const [editId,  setEditId]  = useState(null);
-  const [editVal, setEditVal] = useState('');
+  // Si prop externe fournie, l'utiliser ; sinon état interne
+  const viewBox    = extViewBox    !== undefined ? extViewBox    : _viewBox;
+  const setViewBox = extSetViewBox !== undefined ? extSetViewBox : _setViewBox;
+  const sel        = extSel        !== undefined ? extSel        : _sel;
+  const setSel     = extSetSel     !== undefined ? extSetSel     : _setSel;
 
   const editValRef = useRef('');
   useEffect(() => { editValRef.current = editVal; }, [editVal]);
 
   const stateRef = useRef({
-    viewBox:  { x: -60, y: -10, w: 2620, h: 1380 },
-    nodes:    INIT_NODES,
-    sel:      null,
-    editId:   null,
-    gesture:  null,
-    lastTap:  { nodeId: null, time: 0 },
+    viewBox: extViewBox || INIT_VB,
+    nodes:   INIT_NODES,
+    sel:     null,
+    editId:  null,
+    gesture: null,
+    lastTap: { nodeId: null, time: 0 },
     onBeforeChange: null,
+    multiSel:  new Set(),
+    addMode:   false,
+    onAddNode: null,
   });
-  useEffect(() => { stateRef.current.viewBox = viewBox; }, [viewBox]);
-  useEffect(() => { stateRef.current.nodes   = nodes;   }, [nodes]);
-  useEffect(() => { stateRef.current.sel     = sel;     }, [sel]);
-  useEffect(() => { stateRef.current.editId  = editId;  }, [editId]);
-  useEffect(() => { stateRef.current.onBeforeChange = onBeforeChange; }, [onBeforeChange]);
-  useEffect(() => { stateRef.current.syncFs = syncFs; }, [syncFs]);
-  useEffect(() => { stateRef.current.connectMode = connectMode; }, [connectMode]);
-  useEffect(() => { stateRef.current.conn = conn; }, [conn]);
-  useEffect(() => { stateRef.current.onConnNode = onConnNode; }, [onConnNode]);
+  useEffect(() => { stateRef.current.viewBox        = viewBox;       }, [viewBox]);
+  useEffect(() => { stateRef.current.nodes          = nodes;         }, [nodes]);
+  useEffect(() => { stateRef.current.sel            = sel;           }, [sel]);
+  useEffect(() => { stateRef.current.editId         = editId;        }, [editId]);
+  useEffect(() => { stateRef.current.onBeforeChange = onBeforeChange;}, [onBeforeChange]);
+  useEffect(() => { stateRef.current.syncFs         = syncFs;        }, [syncFs]);
+  useEffect(() => { stateRef.current.connectMode    = connectMode;   }, [connectMode]);
+  useEffect(() => { stateRef.current.conn           = conn;          }, [conn]);
+  useEffect(() => { stateRef.current.onConnNode     = onConnNode;    }, [onConnNode]);
+  useEffect(() => { stateRef.current.multiSel       = multiSel;      }, [multiSel]);
+  useEffect(() => { stateRef.current.addMode        = addMode;       }, [addMode]);
+  useEffect(() => { stateRef.current.onAddNode      = onAddNode;     }, [onAddNode]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -390,15 +410,40 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
 
       const nodeId = hitNode(target);
       if (nodeId) {
+        if (s.connectMode) {
+          s.onConnNode?.(nodeId);
+          s.gesture = { type: 'tap' };
+          return;
+        }
         setSel(nodeId);
         const node = s.nodes.find(n => n.id === nodeId);
         const wp   = toWorld(pts[0].clientX, pts[0].clientY);
-        s.gesture  = {
-          type: 'drag', nodeId,
-          ox: node.x - wp.x, oy: node.y - wp.y,
-          hasMoved: false, t0: Date.now(), snapSaved: false,
-        };
+        const ms   = s.multiSel || new Set();
+        if (ms.has(nodeId) && ms.size > 1) {
+          // Drag groupé : tous les nœuds sélectionnés bougent ensemble
+          const startPositions = {};
+          ms.forEach(id => {
+            const n = s.nodes.find(n => n.id === id);
+            if (n) startPositions[id] = { ox: n.x - wp.x, oy: n.y - wp.y };
+          });
+          s.gesture = {
+            type: 'group_drag', startPositions,
+            hasMoved: false, t0: Date.now(), snapSaved: false,
+          };
+        } else {
+          s.gesture = {
+            type: 'drag', nodeId,
+            ox: node.x - wp.x, oy: node.y - wp.y,
+            hasMoved: false, t0: Date.now(), snapSaved: false,
+          };
+        }
       } else {
+        if (s.addMode) {
+          const wp = toWorld(pts[0].clientX, pts[0].clientY);
+          s.onAddNode?.(wp.x, wp.y);
+          s.gesture = { type: 'tap' };
+          return;
+        }
         setSel(null);
         s.gesture = {
           type: 'pan', vb0: { ...s.viewBox },
@@ -436,6 +481,18 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
         s.gesture.hasMoved = true;
         setNodes(p => p.map(n => n.id === s.gesture.nodeId
           ? { ...n, x: wp.x + s.gesture.ox, y: wp.y + s.gesture.oy } : n));
+      } else if (s.gesture.type === 'group_drag') {
+        if (!s.gesture.snapSaved) {
+          s.onBeforeChange?.();
+          s.gesture.snapSaved = true;
+        }
+        const wp = toWorld(pts[0].clientX, pts[0].clientY);
+        s.gesture.hasMoved = true;
+        const sp = s.gesture.startPositions;
+        setNodes(p => p.map(n => {
+          const pos = sp[n.id];
+          return pos ? { ...n, x: wp.x + pos.ox, y: wp.y + pos.oy } : n;
+        }));
       } else if (s.gesture.type === 'resize') {
         if (!s.gesture.snapSaved) {
           s.onBeforeChange?.();
@@ -460,12 +517,11 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
       const s = stateRef.current;
       if (!s.gesture) return;
 
-      // Tap → connect ou double-tap → edit
-      if (s.gesture.type === 'drag' && !s.gesture.hasMoved && Date.now() - s.gesture.t0 < 300) {
-        const { nodeId } = s.gesture;
-        if (s.connectMode) {
-          s.onConnNode?.(nodeId);
-        } else {
+      // Tap → double-tap → edit
+      if ((s.gesture.type === 'drag' || s.gesture.type === 'group_drag') && !s.gesture.hasMoved && Date.now() - s.gesture.t0 < 300) {
+        const nodeId = s.gesture.nodeId || (s.gesture.type === 'group_drag' ? null : null);
+        if (!nodeId) { if (pts.length < 2) s.gesture = null; return; }
+        if (!s.connectMode) {
           const lt  = s.lastTap;
           const now = Date.now();
           if (lt.nodeId === nodeId && now - lt.time < 450) {
@@ -576,11 +632,12 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
 
         {/* ── Nœuds ── */}
         {nodes.map(n => {
-          const lines   = n.text.split('\n');
-          const lh      = (n.fs || 10) + 4;
-          const totalH  = lines.length * lh;
-          const isSel   = n.id === sel;
-          const isConn  = n.id === conn;
+          const lines      = n.text.split('\n');
+          const lh         = (n.fs || 10) + 4;
+          const totalH     = lines.length * lh;
+          const isSel      = n.id === sel;
+          const isConn     = n.id === conn;
+          const isMultiSel = multiSel.has(n.id);
           return (
             <g key={n.id}>
               <g data-role="node" data-nid={n.id}>
@@ -588,9 +645,9 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
                   x={n.x - n.w / 2} y={n.y - n.h / 2}
                   width={n.w} height={n.h} rx={7} ry={7}
                   fill={n.color} opacity={0.93}
-                  stroke={isSel ? '#fff' : isConn ? 'rgba(255,255,255,0.8)' : 'none'}
-                  strokeWidth={isSel ? 2.5 : isConn ? 2.5 : 0}
-                  strokeDasharray={isConn ? '6 3' : 'none'}
+                  stroke={isSel ? '#fff' : isConn ? 'rgba(255,255,255,0.8)' : isMultiSel ? 'rgba(75,92,232,0.95)' : 'none'}
+                  strokeWidth={isSel ? 2.5 : isConn ? 2.5 : isMultiSel ? 2.5 : 0}
+                  strokeDasharray={isConn ? '6 3' : isMultiSel ? '5 3' : 'none'}
                 />
                 {lines.map((line, i) => (
                   <text key={i}
@@ -621,6 +678,21 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
             </g>
           );
         })}
+
+        {/* ── Rect-select ── */}
+        {rectDraw && (
+          <rect
+            x={Math.min(rectDraw.x1, rectDraw.x2)}
+            y={Math.min(rectDraw.y1, rectDraw.y2)}
+            width={Math.abs(rectDraw.x2 - rectDraw.x1)}
+            height={Math.abs(rectDraw.y2 - rectDraw.y1)}
+            fill="rgba(75,92,232,0.08)"
+            stroke="rgba(75,92,232,0.75)"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
 
         {/* ── Légende ── */}
         {[
