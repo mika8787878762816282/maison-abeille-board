@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import ParcoursMindMap, { INIT_NODES as P_INIT_NODES } from "./ParcoursMindMap.jsx";
+import ParcoursMindMap, { INIT_NODES as P_INIT_NODES, INIT_EDGES as P_INIT_EDGES } from "./ParcoursMindMap.jsx";
 
 const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316'];
 let UID = 10;
@@ -193,6 +193,9 @@ export default function App() {
 
   // ── État Parcours MA ──
   const [pNodes,    setPNodes]    = useState(P_INIT_NODES);
+  const [pEdges,    setPEdges]    = useState(P_INIT_EDGES);
+  const [pMode,     setPMode]     = useState('select');
+  const [pConn,     setPConn]     = useState(null);
   const [pSelAll,   setPSelAll]   = useState(false);
   const [pSliderFs, setPSliderFs] = useState(0);
   const [pSliderW,  setPSliderW]  = useState(0);
@@ -240,6 +243,7 @@ export default function App() {
         setDark(!!d.dark);
         if (d.edgeColor) setEdgeColor(d.edgeColor);
         if (d.pNodes?.length) setPNodes(d.pNodes);
+        if (d.pEdges?.length) setPEdges(d.pEdges);
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
         UID = mx + 1;
       }
@@ -255,9 +259,9 @@ export default function App() {
   // Auto-save
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => save({ nodes, edges, dark, viewBox, edgeColor, pNodes }), 500);
+    const t = setTimeout(() => save({ nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges }), 500);
     return () => clearTimeout(t);
-  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, ready]);
+  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, ready]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -924,6 +928,17 @@ export default function App() {
             whiteSpace:'nowrap', minWidth:28
           }}>{b.l}</button>
         ))}
+        {tab === 'parcours' && [
+          {k:'select',l:'↖'},{k:'connect',l:'⟷'}
+        ].map(b => (
+          <button key={b.k} onClick={() => { setPMode(b.k); setPConn(null); }} style={{
+            background: pMode===b.k ? '#4b5ce8' : T.btnBg,
+            color: pMode===b.k ? '#fff' : T.btnTxt,
+            border:'none', borderRadius:7, padding:'5px 10px',
+            fontSize:13, cursor:'pointer', fontWeight: pMode===b.k ? '600':'normal',
+            whiteSpace:'nowrap', minWidth:28
+          }}>{b.l}</button>
+        ))}
         <button onClick={doToggleSelAll} style={{
           background: activeSelAll ? '#f97316' : T.btnBg,
           color: activeSelAll ? '#fff' : T.btnTxt,
@@ -1074,6 +1089,14 @@ export default function App() {
           color:'#20c997', padding:'7px 22px', borderRadius:20,
           fontSize:12, zIndex:10, pointerEvents:'none', whiteSpace:'nowrap'
         }}>→ Touchez un nœud pour relier</div>
+      )}
+      {pConn && tab === 'parcours' && (
+        <div style={{
+          position:'absolute', bottom:18, left:'50%', transform:'translateX(-50%)',
+          background:'rgba(32,201,151,0.12)', border:'1px solid rgba(32,201,151,0.4)',
+          color:'#20c997', padding:'7px 22px', borderRadius:20,
+          fontSize:12, zIndex:30, pointerEvents:'none', whiteSpace:'nowrap'
+        }}>→ Cliquez un nœud pour relier</div>
       )}
 
       {/* Hidden image input */}
@@ -1312,7 +1335,28 @@ export default function App() {
         position: 'absolute', inset: 0, zIndex: 20,
         display: tab === 'parcours' ? 'block' : 'none',
       }}>
-        <ParcoursMindMap dark={dark} nodes={pNodes} setNodes={setPNodes} onBeforeChange={pSaveSnap} syncFs={syncFs} />
+        <ParcoursMindMap
+          dark={dark} nodes={pNodes} setNodes={setPNodes}
+          onBeforeChange={pSaveSnap} syncFs={syncFs}
+          edges={pEdges} setEdges={setPEdges}
+          connectMode={pMode === 'connect'} conn={pConn}
+          onConnNode={(nodeId) => {
+            if (!pConn) {
+              setPConn(nodeId);
+            } else if (pConn !== nodeId) {
+              pSaveSnap();
+              setPEdges(p => {
+                const dup = p.find(e =>
+                  (e.from === pConn && e.to === nodeId) ||
+                  (e.from === nodeId && e.to === pConn)
+                );
+                return dup ? p : [...p, { id: `pe_${Date.now()}`, from: pConn, to: nodeId }];
+              });
+              setPConn(null);
+              setPMode('select');
+            }
+          }}
+        />
       </div>
     </div>
   );

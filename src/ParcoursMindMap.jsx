@@ -185,7 +185,7 @@ export const INIT_NODES = [
 ];
 
 // ── Connexions ─────────────────────────────────────────────────
-const INIT_EDGES = [
+export const INIT_EDGES = [
   { id:'e_bv',    from:'bv',      to:'motif' },
   { id:'em_p1',   from:'motif',   to:'p1_h' },
   { id:'em_p2',   from:'motif',   to:'p2_h' },
@@ -275,7 +275,7 @@ function borderPt(n, tx, ty) {
   return { x: n.x + dx * t, y: n.y + dy * t };
 }
 
-export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange, syncFs }) {
+export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange, syncFs, edges, setEdges, connectMode, conn, onConnNode }) {
   const svgRef   = useRef(null);
   const inputRef = useRef(null);
 
@@ -303,6 +303,9 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
   useEffect(() => { stateRef.current.editId  = editId;  }, [editId]);
   useEffect(() => { stateRef.current.onBeforeChange = onBeforeChange; }, [onBeforeChange]);
   useEffect(() => { stateRef.current.syncFs = syncFs; }, [syncFs]);
+  useEffect(() => { stateRef.current.connectMode = connectMode; }, [connectMode]);
+  useEffect(() => { stateRef.current.conn = conn; }, [conn]);
+  useEffect(() => { stateRef.current.onConnNode = onConnNode; }, [onConnNode]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -457,17 +460,21 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
       const s = stateRef.current;
       if (!s.gesture) return;
 
-      // Double-tap → edit (mobile)
+      // Tap → connect ou double-tap → edit
       if (s.gesture.type === 'drag' && !s.gesture.hasMoved && Date.now() - s.gesture.t0 < 300) {
         const { nodeId } = s.gesture;
-        const lt  = s.lastTap;
-        const now = Date.now();
-        if (lt.nodeId === nodeId && now - lt.time < 450) {
-          const node = s.nodes.find(n => n.id === nodeId);
-          if (node) { setEditId(nodeId); setEditVal(node.text); }
-          s.lastTap = { nodeId: null, time: 0 };
+        if (s.connectMode) {
+          s.onConnNode?.(nodeId);
         } else {
-          s.lastTap = { nodeId, time: now };
+          const lt  = s.lastTap;
+          const now = Date.now();
+          if (lt.nodeId === nodeId && now - lt.time < 450) {
+            const node = s.nodes.find(n => n.id === nodeId);
+            if (node) { setEditId(nodeId); setEditVal(node.text); }
+            s.lastTap = { nodeId: null, time: 0 };
+          } else {
+            s.lastTap = { nodeId, time: now };
+          }
         }
       }
 
@@ -553,7 +560,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
         </defs>
 
         {/* ── Connexions ── */}
-        {INIT_EDGES.map(e => {
+        {(edges || INIT_EDGES).map(e => {
           const a = nodeMap[e.from], b = nodeMap[e.to];
           if (!a || !b) return null;
           const p1 = borderPt(a, b.x, b.y);
@@ -573,6 +580,7 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
           const lh      = (n.fs || 10) + 4;
           const totalH  = lines.length * lh;
           const isSel   = n.id === sel;
+          const isConn  = n.id === conn;
           return (
             <g key={n.id}>
               <g data-role="node" data-nid={n.id}>
@@ -580,8 +588,9 @@ export default function ParcoursMindMap({ dark, nodes, setNodes, onBeforeChange,
                   x={n.x - n.w / 2} y={n.y - n.h / 2}
                   width={n.w} height={n.h} rx={7} ry={7}
                   fill={n.color} opacity={0.93}
-                  stroke={isSel ? '#fff' : 'none'}
-                  strokeWidth={isSel ? 2.5 : 0}
+                  stroke={isSel ? '#fff' : isConn ? 'rgba(255,255,255,0.8)' : 'none'}
+                  strokeWidth={isSel ? 2.5 : isConn ? 2.5 : 0}
+                  strokeDasharray={isConn ? '6 3' : 'none'}
                 />
                 {lines.map((line, i) => (
                   <text key={i}
