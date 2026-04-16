@@ -271,7 +271,9 @@ export default function App() {
   const [tab, setTab] = useState('mindmap');
   const [syncFs, setSyncFs] = useState(true);
   const [planningCells, setPlanningCells] = useState({});
-  const [ginaData, setGinaData] = useState(null);
+  const [ginaData,      setGinaData]      = useState(null);
+  const [clipboard,     setClipboard]     = useState([]); // partagé entre tous les onglets
+  const [triggerEditIdP, setTriggerEditIdP] = useState(null); // déclencheur édition Parcours MA
   const [multiSel, setMultiSel] = useState(new Set());
   const [rectDraw, setRectDraw] = useState(null);
 
@@ -286,6 +288,13 @@ export default function App() {
   const [pSliderH,  setPSliderH]  = useState(0);
   const pBaseNodesRef = useRef(null);
   const pNodesRef = useRef(pNodes);
+  const [pViewBox,   setPViewBox]   = useState({ x: -60, y: -10, w: 2620, h: 1380 });
+  const [pSel,       setPSel]       = useState(null);
+  const [pMultiSel,  setPMultiSel]  = useState(new Set());
+  const [pRectDraw,  setPRectDraw]  = useState(null);
+  const pWrapRef    = useRef(null);
+  const pViewBoxRef = useRef({ x: -60, y: -10, w: 2620, h: 1380 });
+  const pRectSelRef = useRef(null);
 
   // ── Undo / Redo ──
   const undoRef  = useRef([]);
@@ -315,8 +324,15 @@ export default function App() {
   useEffect(() => { stateRef.current.conn = conn; }, [conn]);
   useEffect(() => { stateRef.current.editId = editId; }, [editId]);
   useEffect(() => { stateRef.current.edges  = edges;  }, [edges]);
-  useEffect(() => { stateRef.current.syncFs = syncFs; }, [syncFs]);
+  useEffect(() => { stateRef.current.syncFs   = syncFs;   }, [syncFs]);
+  useEffect(() => { stateRef.current.multiSel  = multiSel;  }, [multiSel]);
+  useEffect(() => { stateRef.current.tab       = tab;       }, [tab]);
+  useEffect(() => { stateRef.current.sel       = sel;       }, [sel]);
+  useEffect(() => { stateRef.current.clipboard = clipboard; }, [clipboard]);
+  useEffect(() => { stateRef.current.pSel      = pSel;      }, [pSel]);
+  useEffect(() => { stateRef.current.pMultiSel = pMultiSel; }, [pMultiSel]);
   useEffect(() => { pNodesRef.current = pNodes; }, [pNodes]);
+  useEffect(() => { pViewBoxRef.current = pViewBox; }, [pViewBox]);
 
   // Load from storage & init viewBox to screen size
   useEffect(() => {
@@ -328,6 +344,7 @@ export default function App() {
         if (d.edgeColor) setEdgeColor(d.edgeColor);
         if (d.pNodes?.length) setPNodes(d.pNodes);
         if (d.pEdges?.length) setPEdges(d.pEdges);
+        if (d.pViewBox) { setPViewBox(d.pViewBox); pViewBoxRef.current = d.pViewBox; }
         if (d.planningCells) setPlanningCells(d.planningCells);
         if (d.ginaNodes?.length) setGinaData({ nodes: d.ginaNodes, edges: d.ginaEdges || [], viewBox: d.ginaViewBox });
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
@@ -346,12 +363,12 @@ export default function App() {
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => save({
-      nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges,
+      nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox,
       planningCells,
       ginaNodes: ginaData?.nodes, ginaEdges: ginaData?.edges, ginaViewBox: ginaData?.viewBox,
     }), 500);
     return () => clearTimeout(t);
-  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, planningCells, ginaData, ready]);
+  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox, planningCells, ginaData, ready]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -467,8 +484,18 @@ export default function App() {
         if (node) {
           setSel(nodeId);
           setSelEdge(null);
-          const w = toWorld(t.clientX, t.clientY);
-          s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
+          const w  = toWorld(t.clientX, t.clientY);
+          const ms = s.multiSel || new Set();
+          if (ms.has(nodeId) && ms.size > 1) {
+            const groupOffsets = {};
+            ms.forEach(id => {
+              const n = s.nodes.find(n => n.id === id);
+              if (n) groupOffsets[id] = { ox: n.x - w.x, oy: n.y - w.y };
+            });
+            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, groupOffsets, snapSaved: false };
+          } else {
+            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
+          }
         }
         return;
       }
@@ -543,7 +570,14 @@ export default function App() {
         const t = points[0];
         const w = toWorld(t.clientX, t.clientY);
         const id = g.id;
-        setNodes(p => p.map(n => n.id === id ? { ...n, x: w.x - g.ox, y: w.y - g.oy } : n));
+        if (g.groupOffsets) {
+          setNodes(p => p.map(n => {
+            const off = g.groupOffsets[n.id];
+            return off ? { ...n, x: w.x + off.ox, y: w.y + off.oy } : n;
+          }));
+        } else {
+          setNodes(p => p.map(n => n.id === id ? { ...n, x: w.x - g.ox, y: w.y - g.oy } : n));
+        }
         return;
       }
 
@@ -671,6 +705,58 @@ export default function App() {
     };
   }, [mode]);
 
+  // ── Rect-select Parcours MA ──────────────────────────────────
+  useEffect(() => {
+    if (pMode !== 'rect') { setPRectDraw(null); return; }
+
+    const getWorld = (clientX, clientY) => {
+      const wrap = pWrapRef.current;
+      if (!wrap) return { x: 0, y: 0 };
+      const r  = wrap.getBoundingClientRect();
+      const vb = pViewBoxRef.current;
+      return {
+        x: vb.x + ((clientX - r.left) / r.width)  * vb.w,
+        y: vb.y + ((clientY - r.top)  / r.height) * vb.h,
+      };
+    };
+
+    const onMove = (e) => {
+      const rs = pRectSelRef.current;
+      if (!rs) return;
+      const w = getWorld(e.clientX, e.clientY);
+      rs.ex = w.x; rs.ey = w.y;
+      setPRectDraw({ x1: rs.sx, y1: rs.sy, x2: w.x, y2: w.y });
+    };
+
+    const onUp = () => {
+      const rs = pRectSelRef.current;
+      if (!rs) return;
+      const minX = Math.min(rs.sx, rs.ex), maxX = Math.max(rs.sx, rs.ex);
+      const minY = Math.min(rs.sy, rs.ey), maxY = Math.max(rs.sy, rs.ey);
+      const selected = new Set(
+        pNodesRef.current.filter(n =>
+          n.x - n.w/2 < maxX && n.x + n.w/2 > minX &&
+          n.y - n.h/2 < maxY && n.y + n.h/2 > minY
+        ).map(n => n.id)
+      );
+      if (selected.size > 0) {
+        pBaseNodesRef.current = pNodesRef.current.map(n => ({...n}));
+        setPSliderFs(0); setPSliderW(0); setPSliderH(0);
+        setPMultiSel(selected);
+      }
+      pRectSelRef.current = null;
+      setPRectDraw(null);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      setPRectDraw(null);
+    };
+  }, [pMode]);
+
   useEffect(() => {
     const p = (e) => e.preventDefault();
     document.addEventListener('gesturestart',  p);
@@ -683,24 +769,59 @@ export default function App() {
     };
   }, []);
 
-  // Ctrl+A → select all
+  // ── Keyboard shortcuts (tab-aware) ──────────────────────────
   useEffect(() => {
     const onKey = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const t = stateRef.current.tab;
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
-        baseNodesRef.current = stateRef.current.nodes.map(n => ({ ...n }));
-        setSliderFs(0); setSliderW(0); setSliderH(0);
-        setSelAll(true);
-        setMultiSel(new Set());
-        setSel(null);
-        setSelEdge(null);
+        if (t === 'mindmap') {
+          baseNodesRef.current = stateRef.current.nodes.map(n => ({ ...n }));
+          setSliderFs(0); setSliderW(0); setSliderH(0);
+          setSelAll(true); setMultiSel(new Set()); setSel(null); setSelEdge(null);
+        } else if (t === 'parcours') {
+          pBaseNodesRef.current = pNodesRef.current.map(n => ({ ...n }));
+          setPSliderFs(0); setPSliderW(0); setPSliderH(0);
+          setPSelAll(true); setPMultiSel(new Set()); setPSel(null);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        if (t === 'mindmap') copyMap();
+        else if (t === 'parcours') copyParcours();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        if (t === 'mindmap') pasteMap();
+        else if (t === 'parcours') pasteParcours();
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (t === 'mindmap') {
+          const ms = stateRef.current.multiSel || new Set();
+          const s  = stateRef.current.sel;
+          const toDelete = ms.size > 0 ? ms : s ? new Set([s]) : null;
+          if (!toDelete) return;
+          saveSnap();
+          setNodes(p => p.filter(n => !toDelete.has(n.id)));
+          setEdges(p => p.filter(e => !toDelete.has(e.from) && !toDelete.has(e.to)));
+          setMultiSel(new Set()); setSel(null);
+        } else if (t === 'parcours') {
+          const ms = stateRef.current.pMultiSel || new Set();
+          const s  = stateRef.current.pSel;
+          const toDelete = ms.size > 0 ? ms : s ? new Set([s]) : null;
+          if (!toDelete) return;
+          pSaveSnap();
+          setPNodes(p => p.filter(n => !toDelete.has(n.id)));
+          setPEdges(p => p.filter(e => !toDelete.has(e.from) && !toDelete.has(e.to)));
+          setPMultiSel(new Set()); setPSel(null);
+        }
       }
       if (e.key === 'Escape') {
-        setSelAll(false);
-        setMultiSel(new Set());
-        setRectDraw(null);
-        setSel(null);
-        setSelEdge(null);
+        setSelAll(false); setMultiSel(new Set()); setRectDraw(null); setSel(null); setSelEdge(null);
+        setPSelAll(false); setPMultiSel(new Set()); setPRectDraw(null); setPSel(null);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -802,6 +923,7 @@ export default function App() {
     const base = pBaseNodesRef.current;
     if (!base) return;
     setPNodes(p => p.map(n => {
+      if (!pSelAll && !pMultiSel.has(n.id)) return n;
       const b = base.find(b => b.id === n.id);
       return b ? { ...n, fs: Math.max(6, Math.min(40, (b.fs || 10) + val)) } : n;
     }));
@@ -811,6 +933,7 @@ export default function App() {
     const base = pBaseNodesRef.current;
     if (!base) return;
     setPNodes(p => p.map(n => {
+      if (!pSelAll && !pMultiSel.has(n.id)) return n;
       const b = base.find(b => b.id === n.id);
       return b ? { ...n, w: Math.max(60, b.w + val) } : n;
     }));
@@ -820,6 +943,7 @@ export default function App() {
     const base = pBaseNodesRef.current;
     if (!base) return;
     setPNodes(p => p.map(n => {
+      if (!pSelAll && !pMultiSel.has(n.id)) return n;
       const b = base.find(b => b.id === n.id);
       return b ? { ...n, h: Math.max(24, b.h + val) } : n;
     }));
@@ -897,6 +1021,42 @@ export default function App() {
     setEditVal(node.text);
   };
 
+  // ── Copy / Paste (partagé entre tous les onglets) ──────────────
+  const copyMap = () => {
+    const ms = stateRef.current.multiSel || new Set();
+    const s  = stateRef.current.sel;
+    const ids = ms.size > 0 ? ms : s ? new Set([s]) : new Set();
+    if (!ids.size) return;
+    setClipboard(stateRef.current.nodes.filter(n => ids.has(n.id)));
+  };
+  const pasteMap = () => {
+    const cb = stateRef.current.clipboard;
+    if (!cb?.length) return;
+    saveSnap();
+    const newNodes = cb.map(n => ({ ...n, id: gid(), x: n.x + 50, y: n.y + 50 }));
+    setNodes(p => [...p, ...newNodes]);
+    setMultiSel(new Set(newNodes.map(n => n.id)));
+  };
+  const copyParcours = () => {
+    const ms = stateRef.current.pMultiSel || new Set();
+    const s  = stateRef.current.pSel;
+    const ids = ms.size > 0 ? ms : s ? new Set([s]) : new Set();
+    if (!ids.size) return;
+    setClipboard(pNodesRef.current.filter(n => ids.has(n.id)));
+  };
+  const pasteParcours = () => {
+    const cb = stateRef.current.clipboard;
+    if (!cb?.length) return;
+    pSaveSnap();
+    const newNodes = cb.map(n => ({
+      ...n,
+      id: `pe_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+      x: n.x + 50, y: n.y + 50,
+    }));
+    setPNodes(p => [...p, ...newNodes]);
+    setPMultiSel(new Set(newNodes.map(n => n.id)));
+  };
+
   const uploadImage = async (file) => {
     setUploading(true);
     try {
@@ -956,7 +1116,7 @@ export default function App() {
   const selNode = nodes.find(n => n.id === sel);
 
   // ── Vars actives selon l'onglet ──
-  const activeSelAll     = tab === 'mindmap' ? (selAll || multiSel.size > 0) : pSelAll;
+  const activeSelAll     = tab === 'mindmap' ? (selAll || multiSel.size > 0) : (pSelAll || pMultiSel.size > 0);
   const activeSliderFs   = tab === 'mindmap' ? sliderFs   : pSliderFs;
   const activeSliderW    = tab === 'mindmap' ? sliderW    : pSliderW;
   const activeSliderH    = tab === 'mindmap' ? sliderH    : pSliderH;
@@ -1019,9 +1179,12 @@ export default function App() {
           }}>{b.l}</button>
         ))}
         {tab === 'parcours' && [
-          {k:'select',l:'↖'},{k:'connect',l:'⟷'}
+          {k:'select',l:'↖'},{k:'rect',l:'⬚'},{k:'add',l:'＋'},{k:'connect',l:'⟷'}
         ].map(b => (
-          <button key={b.k} onClick={() => { setPMode(b.k); setPConn(null); }} style={{
+          <button key={b.k} onClick={() => {
+            setPMode(b.k); setPConn(null);
+            if (b.k !== 'rect') { setPMultiSel(new Set()); setPRectDraw(null); }
+          }} style={{
             background: pMode===b.k ? '#4b5ce8' : T.btnBg,
             color: pMode===b.k ? '#fff' : T.btnTxt,
             border:'none', borderRadius:7, padding:'5px 10px',
@@ -1081,6 +1244,9 @@ export default function App() {
           {tab === 'mindmap' && multiSel.size > 0 && !selAll && (
             <span style={{color:'rgba(75,92,232,0.9)', fontSize:10, minWidth:24, fontWeight:'600'}}>{multiSel.size}⬚</span>
           )}
+          {tab === 'parcours' && pMultiSel.size > 0 && (
+            <span style={{color:'rgba(75,92,232,0.9)', fontSize:10, minWidth:24, fontWeight:'600'}}>{pMultiSel.size}⬚</span>
+          )}
           <span style={{color:T.sub, fontSize:10, minWidth:28}}>A {activeSliderFs > 0 ? '+' : ''}{activeSliderFs}</span>
           <input type="range" min={-8} max={14} step={1} value={activeSliderFs}
             onChange={e => doSliderFs(Number(e.target.value))}
@@ -1098,7 +1264,64 @@ export default function App() {
             onChange={e => doSliderH(Number(e.target.value))}
             style={{width:72, accentColor:'#f97316', cursor:'pointer'}}
           />
+          <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          <button onClick={() => { tab === 'mindmap' ? copyMap() : copyParcours(); }} title="Copier (Ctrl+C)" style={{
+            background: clipboard.length ? 'rgba(32,201,151,0.15)' : T.btnBg,
+            color: clipboard.length ? '#20c997' : T.btnTxt,
+            border:'none', borderRadius:7, padding:'5px 9px', fontSize:12, cursor:'pointer',
+          }}>⎘</button>
+          <button onClick={() => { tab === 'mindmap' ? pasteMap() : pasteParcours(); }} title="Coller (Ctrl+V)" style={{
+            background: T.btnBg, color: T.btnTxt,
+            border:'none', borderRadius:7, padding:'5px 9px', fontSize:12,
+            cursor: clipboard.length ? 'pointer' : 'default',
+            opacity: clipboard.length ? 1 : 0.35,
+          }}>⎗</button>
         </>}
+
+        {/* ⎘/⎗ even when only one node selected (no multi-sel active) */}
+        {!activeSelAll && (sel || pSel) && <>
+          <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          <button onClick={() => { tab === 'mindmap' ? copyMap() : copyParcours(); }} title="Copier (Ctrl+C)" style={{
+            background: T.btnBg, color: T.btnTxt,
+            border:'none', borderRadius:7, padding:'5px 9px', fontSize:12, cursor:'pointer',
+          }}>⎘</button>
+          <button onClick={() => { tab === 'mindmap' ? pasteMap() : pasteParcours(); }} title="Coller (Ctrl+V)" style={{
+            background: T.btnBg, color: T.btnTxt,
+            border:'none', borderRadius:7, padding:'5px 9px', fontSize:12,
+            cursor: clipboard.length ? 'pointer' : 'default',
+            opacity: clipboard.length ? 1 : 0.35,
+          }}>⎗</button>
+        </>}
+
+        {/* Paste when nothing selected but clipboard has content */}
+        {!activeSelAll && !sel && !pSel && clipboard.length > 0 && (tab === 'mindmap' || tab === 'parcours') && <>
+          <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+          <button onClick={() => { tab === 'mindmap' ? pasteMap() : pasteParcours(); }} title="Coller (Ctrl+V)" style={{
+            background: T.btnBg, color: T.btnTxt,
+            border:'none', borderRadius:7, padding:'5px 9px', fontSize:12, cursor:'pointer',
+          }}>⎗</button>
+        </>}
+
+        {/* ✏ for Parcours MA single selection */}
+        {tab === 'parcours' && pSel && !pMultiSel.size && (() => {
+          const pn = pNodes.find(n => n.id === pSel);
+          return pn ? <>
+            <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
+            <button onClick={() => setTriggerEditIdP(pSel + '|' + Date.now())} style={{
+              background:T.btnBg, color:'#20c997', border:'none',
+              borderRadius:7, padding:'5px 9px', fontSize:11, cursor:'pointer',
+            }} title="Éditer le texte">✏</button>
+            <button onClick={() => {
+              pSaveSnap();
+              setPNodes(p => p.filter(n => n.id !== pSel));
+              setPEdges(p => p.filter(e => e.from !== pSel && e.to !== pSel));
+              setPSel(null);
+            }} style={{
+              background:'rgba(232,85,85,0.12)', color:'#e85555', border:'none',
+              borderRadius:7, padding:'5px 9px', fontSize:11, cursor:'pointer',
+            }}>✕</button>
+          </> : null;
+        })()}
 
         {tab === 'mindmap' && selEdge && <>
           <div style={{width:1,height:18,background:T.bBorder,margin:'0 2px'}} />
@@ -1434,18 +1657,48 @@ export default function App() {
           savedData={ginaData}
           onChange={setGinaData}
           dark={dark}
+          clipboard={clipboard}
+          onClipboardChange={setClipboard}
         />
       )}
 
       {/* ── Onglet Parcours MA — toujours monté, juste caché ── */}
-      <div style={{
+      <div ref={pWrapRef} style={{
         position: 'absolute', inset: 0, zIndex: 20,
         display: tab === 'parcours' ? 'block' : 'none',
       }}>
+        {/* Rect-select overlay */}
+        {pMode === 'rect' && (
+          <div
+            style={{ position:'absolute', inset:0, zIndex:25, cursor:'crosshair' }}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return;
+              const wrap = pWrapRef.current;
+              if (!wrap) return;
+              const r  = wrap.getBoundingClientRect();
+              const vb = pViewBoxRef.current;
+              const wx = vb.x + ((e.clientX - r.left) / r.width)  * vb.w;
+              const wy = vb.y + ((e.clientY - r.top)  / r.height) * vb.h;
+              pRectSelRef.current = { sx: wx, sy: wy, ex: wx, ey: wy };
+              setPRectDraw({ x1: wx, y1: wy, x2: wx, y2: wy });
+            }}
+          />
+        )}
         <ParcoursMindMap
           dark={dark} nodes={pNodes} setNodes={setPNodes}
           onBeforeChange={pSaveSnap} syncFs={syncFs}
           edges={pEdges} setEdges={setPEdges}
+          viewBox={pViewBox} setViewBox={setPViewBox}
+          sel={pSel} setSel={setPSel}
+          multiSel={pMultiSel} rectDraw={pRectDraw}
+          addMode={pMode === 'add'} onAddNode={(wx, wy) => {
+            pSaveSnap();
+            const nn = { id: `pe_${Date.now()}`, x: wx, y: wy, w: 160, h: 42, text: 'Nouveau', color: '#4b5ce8', fs: 10 };
+            setPNodes(p => [...p, nn]);
+            setPSel(nn.id);
+            setPMode('select');
+          }}
+          triggerEditId={triggerEditIdP}
           connectMode={pMode === 'connect'} conn={pConn}
           onConnNode={(nodeId) => {
             if (!pConn) {

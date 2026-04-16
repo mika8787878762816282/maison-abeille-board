@@ -3,7 +3,7 @@ import ParcoursMindMap from './ParcoursMindMap.jsx';
 
 const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316'];
 
-export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, savedData, onChange, dark }) {
+export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, savedData, onChange, dark, clipboard: extClipboard, onClipboardChange }) {
   const [nodes,    setNodes]    = useState(() => savedData?.nodes?.length  ? savedData.nodes  : initNodes);
   const [edges,    setEdges]    = useState(() => savedData?.edges?.length  ? savedData.edges  : initEdges);
   const [viewBox,  setViewBox]  = useState(() => savedData?.viewBox        ? savedData.viewBox : initViewBox);
@@ -14,7 +14,9 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
   const [rectDraw, setRectDraw] = useState(null);
   const [sliderFs,   setSliderFs]   = useState(0);
   const [histVer,    setHistVer]    = useState(0);
-  const [clipboard,    setClipboard]    = useState([]);
+  const [_clipboard,   _setClipboard]  = useState([]);
+  const clipboard    = extClipboard    !== undefined ? extClipboard    : _clipboard;
+  const setClipboard = onClipboardChange !== undefined ? onClipboardChange : _setClipboard;
   const [triggerEditId, setTriggerEditId] = useState(null);
 
   const baseNodesRef = useRef(null);
