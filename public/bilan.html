@@ -91,9 +91,10 @@
 <section>
   <h2>Détail envois Georgia (2162162) — template "11111"</h2>
   <table>
-    <tr><th>Date</th><th>Envoyés</th><th>Skip</th><th>Total patients</th><th>Méthode</th><th>Motif</th></tr>
+    <tr><th>Date envoi</th><th>📅 RDV clients couverts</th><th>Envoyés</th><th>Skip</th><th>Total</th><th>Méthode</th><th>Note</th></tr>
     <tr>
       <td>09/04/2026</td>
+      <td><strong>09/04/2026</strong></td>
       <td><span class="badge badge-green">4</span></td>
       <td>—</td>
       <td>52</td>
@@ -102,14 +103,16 @@
     </tr>
     <tr>
       <td>11/04/2026</td>
+      <td><strong>11/04/2026</strong></td>
       <td><span class="badge badge-green">9</span></td>
-      <td>1 (pas de contact)</td>
+      <td>1</td>
       <td>48</td>
       <td>UI manuelle</td>
       <td>Tous motifs du jour</td>
     </tr>
     <tr>
       <td>13/04/2026</td>
+      <td><strong>13/04/2026</strong></td>
       <td><span class="badge badge-green">~40</span></td>
       <td>—</td>
       <td>~54</td>
@@ -118,11 +121,12 @@
     </tr>
     <tr>
       <td>14/04/2026</td>
+      <td><strong class="yellow">15/04/2026 → 13/07/2026</strong></td>
       <td><span class="badge badge-green">~650</span></td>
       <td>~155</td>
       <td>~808</td>
       <td>Script Node.js (d2p)</td>
-      <td><strong>Consultation de chirurgie dermatologique</strong> — TOUS motifs envoyés ⚠️ (erreur : aurait dû filtrer sur ce motif uniquement)</td>
+      <td>⚠️ Tous motifs au lieu de "Consultation chir. derma" uniquement</td>
     </tr>
   </table>
 </section>
@@ -130,14 +134,15 @@
 <section>
   <h2>Détail envois Chirurgie Derm (2205691) — template "11111"</h2>
   <table>
-    <tr><th>Date</th><th>Envoyés</th><th>Skip</th><th>Total</th><th>Méthode</th><th>Problème</th></tr>
+    <tr><th>Date envoi</th><th>📅 RDV clients couverts</th><th>Envoyés</th><th>Skip</th><th>Total</th><th>Méthode</th><th>Problème</th></tr>
     <tr>
       <td>14/04/2026</td>
+      <td><strong class="yellow">15/04/2026 → fin 2026</strong></td>
       <td><span class="badge badge-blue">288</span></td>
       <td>42</td>
       <td>330</td>
       <td>Script Node.js (d2p)</td>
-      <td class="red">3 batches lancés sans dédup → doublons massifs</td>
+      <td class="red">⚠️ 3 batches sans dédup → doublons massifs</td>
     </tr>
   </table>
 </section>
