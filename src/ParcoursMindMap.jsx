@@ -283,6 +283,7 @@ export default function ParcoursMindMap({
   sel: extSel, setSel: extSetSel,
   addMode, onAddNode,
   multiSel = new Set(), rectDraw,
+  triggerEditId,   // déclenche l'édition depuis l'extérieur
 }) {
   const svgRef   = useRef(null);
   const inputRef = useRef(null);
@@ -326,6 +327,14 @@ export default function ParcoursMindMap({
   useEffect(() => { stateRef.current.multiSel       = multiSel;      }, [multiSel]);
   useEffect(() => { stateRef.current.addMode        = addMode;       }, [addMode]);
   useEffect(() => { stateRef.current.onAddNode      = onAddNode;     }, [onAddNode]);
+
+  // Édition déclenchée depuis l'extérieur (bouton ✏ dans WorkflowMindMap)
+  useEffect(() => {
+    if (!triggerEditId) return;
+    const nodeId = triggerEditId.split('|')[0];
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) { setEditId(nodeId); setEditVal(node.text); }
+  }, [triggerEditId]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);

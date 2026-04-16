@@ -14,7 +14,8 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
   const [rectDraw, setRectDraw] = useState(null);
   const [sliderFs,   setSliderFs]   = useState(0);
   const [histVer,    setHistVer]    = useState(0);
-  const [clipboard,  setClipboard]  = useState([]);
+  const [clipboard,    setClipboard]    = useState([]);
+  const [triggerEditId, setTriggerEditId] = useState(null);
 
   const baseNodesRef = useRef(null);
   const nodesRef     = useRef(nodes);
@@ -211,6 +212,10 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
 
         {selNode && <>
           <div style={{width:1,height:16,background:T.bBorder,margin:'0 2px'}}/>
+          <button onClick={() => setTriggerEditId(sel + '|' + Date.now())} style={{
+            background:T.btnBg, color:'#20c997', border:'none',
+            borderRadius:7, padding:'4px 9px', fontSize:12, cursor:'pointer',
+          }} title="Éditer le texte">✏</button>
           <span style={{color:T.sub,fontSize:10,minWidth:24}}>A {selNode.fs||11}</span>
           <input type="range" min={6} max={40} step={1} value={selNode.fs||11}
             onChange={e => setNodes(p => p.map(n => n.id===sel?{...n,fs:Number(e.target.value)}:n))}
@@ -310,6 +315,7 @@ export default function WorkflowMindMap({ initNodes, initEdges, initViewBox, sav
         sel={sel}           setSel={setSel}
         multiSel={multiSel} rectDraw={rectDraw}
         addMode={mode==='add'} onAddNode={handleAddNode}
+        triggerEditId={triggerEditId}
         connectMode={mode==='connect'} conn={conn}
         onConnNode={(nodeId) => {
           if (!conn) {
