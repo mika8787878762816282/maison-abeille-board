@@ -258,6 +258,24 @@ function fitToNodes(nds, rect) {
   return { x: (minX + maxX) / 2 - fW / 2, y: (minY + maxY) / 2 - fH / 2, w: fW, h: fH };
 }
 
+// Construit la chaîne de descendants (from→to) à partir d'un nœud
+function buildDescChain(nodeId, edges, nodes, cursorW) {
+  const chain = new Set([nodeId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const eg of edges) {
+      if (chain.has(eg.from) && !chain.has(eg.to)) { chain.add(eg.to); changed = true; }
+    }
+  }
+  const offsets = {};
+  for (const id of chain) {
+    const n = nodes.find(n => n.id === id);
+    if (n) offsets[id] = { ox: cursorW.x - n.x, oy: cursorW.y - n.y };
+  }
+  return { chain, offsets };
+}
+
 function borderPt(n, tx, ty) {
   const dx = tx - n.x, dy = ty - n.y;
   if (!dx && !dy) return { x: n.x, y: n.y };
@@ -452,7 +470,8 @@ export default function App() {
         const node = s.nodes.find(n => n.id === hit.getAttribute('data-id'));
         if (node) {
           const w = toWorld(t.clientX, t.clientY);
-          s.gesture = { type: 'move', id: node.id, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
+          const { chain, offsets } = buildDescChain(node.id, s.edges || [], s.nodes, w);
+          s.gesture = { type: 'move', id: node.id, ox: w.x - node.x, oy: w.y - node.y, chain, offsets, snapSaved: false };
         }
         return;
       }
@@ -507,23 +526,14 @@ export default function App() {
           s.gesture = { type: 'connect_drag', fromId: nodeId, lastClientX: t.clientX, lastClientY: t.clientY };
           return;
         }
-        // Clic droit maintenu → déplacer le nœud
+        // Clic droit maintenu → déplacer le nœud + ses descendants
         const node = s.nodes.find(n => n.id === nodeId);
         if (node) {
           setSel(nodeId);
           setSelEdge(null);
           const w = toWorld(t.clientX, t.clientY);
-          const ms = s.multiSel || new Set();
-          if (ms.has(nodeId) && ms.size > 1) {
-            const groupOffsets = {};
-            ms.forEach(id => {
-              const n = s.nodes.find(n => n.id === id);
-              if (n) groupOffsets[id] = { ox: n.x - w.x, oy: n.y - w.y };
-            });
-            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, groupOffsets, snapSaved: false };
-          } else {
-            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
-          }
+          const { chain, offsets } = buildDescChain(nodeId, s.edges || [], s.nodes, w);
+          s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, chain, offsets, snapSaved: false };
         }
         return;
       }
@@ -615,7 +625,13 @@ export default function App() {
         const t = points[0];
         const w = toWorld(t.clientX, t.clientY);
         const id = g.id;
-        if (g.groupOffsets) {
+        if (g.chain && g.offsets) {
+          // Déplacer nœud + descendants (chain)
+          setNodes(p => p.map(n => {
+            const off = g.offsets[n.id];
+            return off ? { ...n, x: w.x - off.ox, y: w.y - off.oy } : n;
+          }));
+        } else if (g.groupOffsets) {
           setNodes(p => p.map(n => {
             const off = g.groupOffsets[n.id];
             return off ? { ...n, x: w.x + off.ox, y: w.y + off.oy } : n;
