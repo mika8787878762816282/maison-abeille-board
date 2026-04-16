@@ -396,13 +396,6 @@ export default function App() {
       setSel(null);
       setSelEdge(null);
       setSelAll(false);
-      if (s.mode === 'rect') {
-        const w = toWorld(t.clientX, t.clientY);
-        rectSelRef.current = { sx: w.x, sy: w.y, ex: w.x, ey: w.y };
-        s.gesture = { type: 'rectsel' };
-        setRectDraw({ x1: w.x, y1: w.y, x2: w.x, y2: w.y });
-        return;
-      }
       setMultiSel(new Set());
       s.gesture = {
         type: 'pan',
@@ -416,16 +409,6 @@ export default function App() {
       const g = s.gesture;
       if (!g) return;
       const rect = svg.getBoundingClientRect();
-
-      if (g.type === 'rectsel' && points.length >= 1) {
-        const w = toWorld(points[0].clientX, points[0].clientY);
-        const rs = rectSelRef.current;
-        if (rs) {
-          rs.ex = w.x; rs.ey = w.y;
-          setRectDraw({ x1: rs.sx, y1: rs.sy, x2: w.x, y2: w.y });
-        }
-        return;
-      }
 
       if (g.type === 'pinch' && points.length >= 2) {
         const newDist = dist(points[0], points[1]);
@@ -489,32 +472,7 @@ export default function App() {
       }
     };
 
-    const endGesture = () => {
-      const s = stateRef.current;
-      const g = s.gesture;
-      if (g?.type === 'rectsel') {
-        const rs = rectSelRef.current;
-        if (rs) {
-          const minX = Math.min(rs.sx, rs.ex), maxX = Math.max(rs.sx, rs.ex);
-          const minY = Math.min(rs.sy, rs.ey), maxY = Math.max(rs.sy, rs.ey);
-          // Intersection boîte : sélectionne si le nœud touche le rect
-          const selected = new Set(
-            s.nodes.filter(n =>
-              n.x - n.w/2 < maxX && n.x + n.w/2 > minX &&
-              n.y - n.h/2 < maxY && n.y + n.h/2 > minY
-            ).map(n => n.id)
-          );
-          if (selected.size > 0) {
-            baseNodesRef.current = s.nodes.map(n => ({...n}));
-            setSliderFs(0); setSliderW(0); setSliderH(0);
-            setMultiSel(selected);
-          }
-          rectSelRef.current = null;
-        }
-        setRectDraw(null);
-      }
-      s.gesture = null;
-    };
+    const endGesture = () => { stateRef.current.gesture = null; };
 
     const onTS = (e) => { e.preventDefault(); startGesture([...e.touches], e.target); };
     const onTM = (e) => { e.preventDefault(); moveGesture([...e.touches]); };
@@ -565,6 +523,59 @@ export default function App() {
       svg.removeEventListener('wheel', onWheel);
     };
   }, [ready]);
+
+  // ── Rect-select : système indépendant du gesture handler ──
+  useEffect(() => {
+    if (mode !== 'rect') { setRectDraw(null); return; }
+
+    const getWorld = (clientX, clientY) => {
+      const svgEl = svgRef.current;
+      if (!svgEl) return { x: 0, y: 0 };
+      const r = svgEl.getBoundingClientRect();
+      const vb = stateRef.current.viewBox;
+      return {
+        x: vb.x + ((clientX - r.left) / r.width) * vb.w,
+        y: vb.y + ((clientY - r.top)  / r.height) * vb.h,
+      };
+    };
+
+    const onMove = (e) => {
+      const rs = rectSelRef.current;
+      if (!rs) return;
+      const w = getWorld(e.clientX, e.clientY);
+      rs.ex = w.x; rs.ey = w.y;
+      setRectDraw({ x1: rs.sx, y1: rs.sy, x2: w.x, y2: w.y });
+    };
+
+    const onUp = () => {
+      const rs = rectSelRef.current;
+      if (!rs) return;
+      const minX = Math.min(rs.sx, rs.ex), maxX = Math.max(rs.sx, rs.ex);
+      const minY = Math.min(rs.sy, rs.ey), maxY = Math.max(rs.sy, rs.ey);
+      const currNodes = stateRef.current.nodes;
+      const selected = new Set(
+        currNodes.filter(n =>
+          n.x - n.w/2 < maxX && n.x + n.w/2 > minX &&
+          n.y - n.h/2 < maxY && n.y + n.h/2 > minY
+        ).map(n => n.id)
+      );
+      if (selected.size > 0) {
+        baseNodesRef.current = currNodes.map(n => ({...n}));
+        setSliderFs(0); setSliderW(0); setSliderH(0);
+        setMultiSel(selected);
+      }
+      rectSelRef.current = null;
+      setRectDraw(null);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      setRectDraw(null);
+    };
+  }, [mode]);
 
   useEffect(() => {
     const p = (e) => e.preventDefault();
@@ -1069,6 +1080,24 @@ export default function App() {
       <input ref={imgFileRef} type="file" accept="image/*" style={{display:'none'}}
         onChange={e => { if (e.target.files?.[0]) uploadImage(e.target.files[0]); e.target.value=''; }}
       />
+
+      {/* Overlay rect-select — intercepte les events souris en mode ⬚ */}
+      {mode === 'rect' && (
+        <div
+          style={{ position:'absolute', inset:0, zIndex:25, cursor:'crosshair' }}
+          onMouseDown={(e) => {
+            if (e.button !== 0) return;
+            const svgEl = svgRef.current;
+            if (!svgEl) return;
+            const r   = svgEl.getBoundingClientRect();
+            const vb  = stateRef.current.viewBox;
+            const wx  = vb.x + ((e.clientX - r.left) / r.width)  * vb.w;
+            const wy  = vb.y + ((e.clientY - r.top)  / r.height) * vb.h;
+            rectSelRef.current = { sx: wx, sy: wy, ex: wx, ey: wy };
+            setRectDraw({ x1: wx, y1: wy, x2: wx, y2: wy });
+          }}
+        />
+      )}
 
       {/* SVG */}
       <svg ref={svgRef} width="100%" height="100%"
