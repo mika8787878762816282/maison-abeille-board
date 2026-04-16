@@ -507,10 +507,24 @@ export default function App() {
           s.gesture = { type: 'connect_drag', fromId: nodeId, lastClientX: t.clientX, lastClientY: t.clientY };
           return;
         }
-        // Clic droit → sélectionner seulement, pas de déplacement
-        setSel(nodeId);
-        setSelEdge(null);
-        s.gesture = { type: 'tap' };
+        // Clic droit maintenu → déplacer le nœud
+        const node = s.nodes.find(n => n.id === nodeId);
+        if (node) {
+          setSel(nodeId);
+          setSelEdge(null);
+          const w = toWorld(t.clientX, t.clientY);
+          const ms = s.multiSel || new Set();
+          if (ms.has(nodeId) && ms.size > 1) {
+            const groupOffsets = {};
+            ms.forEach(id => {
+              const n = s.nodes.find(n => n.id === id);
+              if (n) groupOffsets[id] = { ox: n.x - w.x, oy: n.y - w.y };
+            });
+            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, groupOffsets, snapSaved: false };
+          } else {
+            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
+          }
+        }
         return;
       }
 
