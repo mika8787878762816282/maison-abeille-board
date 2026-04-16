@@ -182,6 +182,115 @@ const GINA2_INIT_EDGES = [
   { id:'g2e27', from:'g2_amb',      to:'g2_amb_act' },
 ];
 
+// ── Procédure complète — 3 agendas (email Michael Sibony) ─────────
+const PROC_INIT_NODES = [
+
+  // ═══════════════════════════════════════════════════════════════
+  //  SECTION 1 — GEORGIA KANELLOPOULOU
+  // ═══════════════════════════════════════════════════════════════
+  { id:'p_geo_hdr',   x:600,  y:80,   w:440, h:64,  fs:11, color:'#3a1a6e',
+    text:'Planning : "Georgia KANELLOPOULOU"\nMotif : "Consultation de chirurgie dermatologique"' },
+  { id:'p_geo_obj',   x:600,  y:220,  w:440, h:80,  fs:9,  color:'#4b5ce8',
+    text:'Objectif :\n• Vérifier adéquation motif (chirurgie vs dermatologie)\n• Optimiser remplissage planning chirurgical\n• Réduire no-shows et erreurs d\'orientation' },
+  { id:'p_geo_pop',   x:600,  y:380,  w:380, h:52,  fs:10, color:'#4b5ce8',
+    text:'Population : tous patients positionnés sur\n"Consultation de chirurgie dermatologique"' },
+  { id:'p_geo_msg',   x:600,  y:510,  w:420, h:72,  fs:10, color:'#4b5ce8',
+    text:'3.1 Envoi initial (obligatoire – tous patients)\nEnvoyer : "11111 message pour savoir si\nchangement de rdv derma pour chir"\nAutorisation de réponse : ACTIVÉE' },
+  { id:'p_geo_q',     x:600,  y:670,  w:220, h:44,  fs:13, color:'#f5c540',
+    text:'Réponse reçue ?' },
+
+  // Branche gauche — pas de réponse
+  { id:'p_geo_nr',    x:230,  y:810,  w:240, h:44,  fs:12, color:'#64748b',
+    text:'❌ Pas de réponse' },
+  { id:'p_geo_crit',  x:230,  y:960,  w:310, h:80,  fs:9,  color:'#f97316',
+    text:'3.2 Critères relance — UNIQUEMENT si :\nPatient CMU ou AME\nOU patient < 22 ans ET n\'habitant pas\nParis / Neuilly-sur-Seine / Levallois-Perret' },
+  { id:'p_geo_delai', x:230,  y:1130, w:340, h:100, fs:9,  color:'#f97316',
+    text:'Relances selon délai avant RDV :\n< 24h → si pas de réponse après 4h\n48h → si pas de réponse après 12h\n2–3 jours → si pas de réponse après 48h\n4 jours → si toujours pas de réponse après 48h\n> 4 jours → délai au choix' },
+  { id:'p_geo_nrep',  x:230,  y:1340, w:340, h:88,  fs:9,  color:'#c0392b',
+    text:'3.3 Absence totale de réponse (après relances)\nEnvoyer : "11111 message t NO REPLY chir"\nAutorisation de réponse : DÉSACTIVÉE\n→ Bloquer la fiche patient\n→ Annuler le rendez-vous' },
+
+  // Branche droite — réponse
+  { id:'p_geo_rep',   x:970,  y:810,  w:210, h:44,  fs:12, color:'#20c997',
+    text:'✅ Réponse reçue' },
+  { id:'p_geo_chir',  x:820,  y:960,  w:220, h:44,  fs:12, color:'#a855f7',
+    text:'4.1 Réponse CHIRURGIE' },
+  { id:'p_geo_c_cmu', x:680,  y:1110, w:270, h:60,  fs:9,  color:'#a855f7',
+    text:'CMU ou AME\n→ Envoyer "AAchir Cmu lesion\nbenigne ou insiste pour chir"' },
+  { id:'p_geo_c_norm',x:980,  y:1110, w:280, h:72,  fs:9,  color:'#a855f7',
+    text:'Non CMU/AME\n→ Transférer : même jour, même horaire,\nmême en doublon si nécessaire\n→ Agenda : "chirurgie dermatologique"' },
+  { id:'p_geo_dm',    x:1150, y:960,  w:220, h:44,  fs:12, color:'#38bdf8',
+    text:'4.2 Réponse DERMATO' },
+  { id:'p_geo_dm_act',x:1150, y:1110, w:300, h:60,  fs:9,  color:'#38bdf8',
+    text:'Envoyer : "11111 message REPLY\nerreur rdv CHIR + Annulation GINA"' },
+  { id:'p_geo_vigil', x:600,  y:1480, w:540, h:96,  fs:9,  color:'#475569',
+    text:'5. Points de vigilance :\n• Ne jamais annuler sans avoir respecté la séquence de relance\n• Respect strict critères CMU / AME / âge / localisation\n• Transfert en doublon : autorisé et volontaire\n• Toute ambiguïté → considérer comme dermatologie par défaut' },
+
+  // ═══════════════════════════════════════════════════════════════
+  //  SECTION 2 — MOSHÉ ASSOULINE
+  // ═══════════════════════════════════════════════════════════════
+  { id:'p_ass_hdr',   x:1900, y:80,   w:480, h:72,  fs:10, color:'#b7791f',
+    text:'Planning : "Moshé ASSOULINE (Abeille)"\nMotif : "Cartographie numérique complète FOTOFINDER\n+ analyse dermoscopique IA – 350€ hors nomenclature"' },
+  { id:'p_ass_act',   x:1900, y:250,  w:480, h:72,  fs:10, color:'#f5c540',
+    text:'Pour tous les patients :\n→ Envoyer "cartographie avertissement que 350€"\n→ Aucune autre action\n(qu\'il y ait réponse ou non)' },
+
+  // ═══════════════════════════════════════════════════════════════
+  //  SECTION 3 — CHIRURGIE DERM / ALEXANDRE LELLOUCH
+  // ═══════════════════════════════════════════════════════════════
+  { id:'p_chir_hdr',  x:2900, y:80,   w:440, h:64,  fs:11, color:'#1a4a3a',
+    text:'Plannings : "Chirurgie dermatologique"\nou "Alexandre LELLOUCH"' },
+  { id:'p_chir_motif',x:2900, y:230,  w:440, h:128, fs:9,  color:'#065f46',
+    text:'Motifs concernés :\n• Consultation de chirurgie dermatologique\n• Première consultation de chirurgie dermatologique\n• Retrait de grain de beauté (naevus)\n• Retrait de lipome / kyste\n• Retrait de carcinome cutané (cancer de la peau)\n• Retrait de mélanome (cancer de la peau)\n• Retrait d\'excroissances ou acrochordons\n• Chirurgie des oreilles (lobes fendus ou chéloïdes)' },
+  { id:'p_chir_q',    x:2900, y:460,  w:260, h:48,  fs:12, color:'#f5c540',
+    text:'Mutuelle patient ?' },
+  { id:'p_chir_cmu',  x:2680, y:610,  w:300, h:60,  fs:10, color:'#e85555',
+    text:'CMU ou AME\n→ Envoyer "111 cmu chir"' },
+  { id:'p_chir_norm', x:3100, y:610,  w:280, h:60,  fs:10, color:'#20c997',
+    text:'Non CMU/AME\n→ Envoyer "111 Normal chir"' },
+  { id:'p_chir_nr',   x:2900, y:780,  w:240, h:44,  fs:12, color:'#64748b',
+    text:'Pas de réponse ?' },
+  { id:'p_chir_crit', x:2900, y:930,  w:360, h:80,  fs:9,  color:'#f97316',
+    text:'Relance UNIQUEMENT si :\nCMU/AME OU < 22 ans ET hors\nParis / Neuilly-sur-Seine / Levallois-Perret\n(mêmes délais que Georgia)' },
+  { id:'p_chir_nrep', x:2900, y:1120, w:360, h:88,  fs:9,  color:'#c0392b',
+    text:'Absence totale de réponse\nEnvoyer : "11111 message t NO REPLY chir"\nAutorisation de réponse : DÉSACTIVÉE\n→ Bloquer la fiche patient\n→ Annuler le rendez-vous' },
+  { id:'p_chir_rep',  x:2900, y:1320, w:240, h:44,  fs:12, color:'#20c997',
+    text:'Réponse reçue' },
+  { id:'p_chir_r_cmu',x:2680, y:1470, w:310, h:60,  fs:9,  color:'#a855f7',
+    text:'Réponse CHIRURGIE + CMU/AME\n→ Envoyer "AAchir Cmu lesion\nbenigne ou insiste pour chir"' },
+  { id:'p_chir_r_no', x:3100, y:1470, w:260, h:52,  fs:9,  color:'#20c997',
+    text:'En cas de réponse\n→ aucune action supplémentaire' },
+];
+const PROC_INIT_EDGES = [
+  // Georgia
+  { id:'pe01', from:'p_geo_hdr',   to:'p_geo_obj'   },
+  { id:'pe02', from:'p_geo_obj',   to:'p_geo_pop'   },
+  { id:'pe03', from:'p_geo_pop',   to:'p_geo_msg'   },
+  { id:'pe04', from:'p_geo_msg',   to:'p_geo_q'     },
+  { id:'pe05', from:'p_geo_q',     to:'p_geo_nr'    },
+  { id:'pe06', from:'p_geo_q',     to:'p_geo_rep'   },
+  { id:'pe07', from:'p_geo_nr',    to:'p_geo_crit'  },
+  { id:'pe08', from:'p_geo_crit',  to:'p_geo_delai' },
+  { id:'pe09', from:'p_geo_delai', to:'p_geo_nrep'  },
+  { id:'pe10', from:'p_geo_rep',   to:'p_geo_chir'  },
+  { id:'pe11', from:'p_geo_rep',   to:'p_geo_dm'    },
+  { id:'pe12', from:'p_geo_chir',  to:'p_geo_c_cmu' },
+  { id:'pe13', from:'p_geo_chir',  to:'p_geo_c_norm'},
+  { id:'pe14', from:'p_geo_dm',    to:'p_geo_dm_act'},
+  // Assouline
+  { id:'pe20', from:'p_ass_hdr',   to:'p_ass_act'   },
+  // Chir/Lellouch
+  { id:'pe30', from:'p_chir_hdr',  to:'p_chir_motif'},
+  { id:'pe31', from:'p_chir_motif',to:'p_chir_q'    },
+  { id:'pe32', from:'p_chir_q',    to:'p_chir_cmu'  },
+  { id:'pe33', from:'p_chir_q',    to:'p_chir_norm' },
+  { id:'pe34', from:'p_chir_cmu',  to:'p_chir_nr'   },
+  { id:'pe35', from:'p_chir_norm', to:'p_chir_nr'   },
+  { id:'pe36', from:'p_chir_nr',   to:'p_chir_crit' },
+  { id:'pe37', from:'p_chir_crit', to:'p_chir_nrep' },
+  { id:'pe38', from:'p_chir_nrep', to:'p_chir_rep'  },
+  { id:'pe39', from:'p_chir_rep',  to:'p_chir_r_cmu'},
+  { id:'pe40', from:'p_chir_rep',  to:'p_chir_r_no' },
+];
+
 let UID = 10;
 const gid = () => `n${UID++}`;
 
@@ -408,6 +517,7 @@ export default function App() {
   const [planningCells, setPlanningCells] = useState({});
   const [ginaData,      setGinaData]      = useState(null);
   const [gina2Data,     setGina2Data]     = useState(null);
+  const [procData,      setProcData]      = useState(null);
   const [clipboard,     setClipboard]     = useState([]); // partagé entre tous les onglets
   const [triggerEditIdP, setTriggerEditIdP] = useState(null); // déclencheur édition Parcours MA
   const [multiSel, setMultiSel] = useState(new Set());
@@ -484,6 +594,7 @@ export default function App() {
         if (d.planningCells) setPlanningCells(d.planningCells);
         if (d.ginaNodes?.length)  setGinaData({ nodes: d.ginaNodes, edges: d.ginaEdges || [], viewBox: d.ginaViewBox });
         if (d.gina2Nodes?.length) setGina2Data({ nodes: d.gina2Nodes, edges: d.gina2Edges || [], viewBox: d.gina2ViewBox });
+        if (d.procNodes?.length)  setProcData({ nodes: d.procNodes, edges: d.procEdges || [], viewBox: d.procViewBox });
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
         UID = mx + 1;
       }
@@ -503,9 +614,10 @@ export default function App() {
       planningCells,
       ginaNodes: ginaData?.nodes, ginaEdges: ginaData?.edges, ginaViewBox: ginaData?.viewBox,
       gina2Nodes: gina2Data?.nodes, gina2Edges: gina2Data?.edges, gina2ViewBox: gina2Data?.viewBox,
+      procNodes: procData?.nodes, procEdges: procData?.edges, procViewBox: procData?.viewBox,
     }), 500);
     return () => clearTimeout(t);
-  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox, planningCells, ginaData, gina2Data, ready]);
+  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox, planningCells, ginaData, gina2Data, procData, ready]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -1373,7 +1485,7 @@ export default function App() {
         maxWidth:'calc(100vw - 12px)', justifyContent:'center'
       }}>
         {/* ── Onglets ── */}
-        {[{k:'mindmap',l:'⬡ Map'},{k:'planning',l:'▦ Planning'},{k:'gina',l:'⚕ GINA'},{k:'gina2',l:'⚕ GINA v2'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
+        {[{k:'mindmap',l:'⬡ Map'},{k:'planning',l:'▦ Planning'},{k:'gina',l:'⚕ GINA'},{k:'gina2',l:'⚕ GINA v2'},{k:'proc',l:'📋 Procédure'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
           <button key={b.k} onClick={() => setTab(b.k)} style={{
             background: tab===b.k ? '#f5c540' : T.btnBg,
             color: tab===b.k ? '#1a1a1a' : T.btnTxt,
@@ -1896,6 +2008,20 @@ export default function App() {
           initViewBox={{ x: -80, y: -30, w: 2300, h: 1400 }}
           savedData={ginaData}
           onChange={setGinaData}
+          dark={dark}
+          clipboard={clipboard}
+          onClipboardChange={setClipboard}
+        />
+      )}
+
+      {/* ── Onglet Procédure complète 3 agendas ── */}
+      {tab === 'proc' && ready && (
+        <WorkflowMindMap
+          initNodes={PROC_INIT_NODES}
+          initEdges={PROC_INIT_EDGES}
+          initViewBox={{ x: -100, y: -30, w: 3700, h: 1800 }}
+          savedData={procData}
+          onChange={setProcData}
           dark={dark}
           clipboard={clipboard}
           onClipboardChange={setClipboard}
