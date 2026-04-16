@@ -85,6 +85,103 @@ const GINA_INIT_EDGES = [
   { id:'ge23', from:'gn_dm_act',   to:'gn_dm_noc' },
   { id:'ge24', from:'gn_amb',      to:'gn_amb_act' },
 ];
+// ── Workflow GINA v2 — texte exact email Michael Sibony ──────────
+const GINA2_INIT_NODES = [
+  { id:'g2_start',   x:1200, y:80,   w:420, h:66,  fs:10, color:'#3a1a6e',
+    text:'RDV agenda GEORGIA · 2162162\nMotif : "Première consultation de chirurgie dermatologique" UNIQUEMENT' },
+  { id:'g2_msg',     x:1200, y:240,  w:400, h:80,  fs:10, color:'#4b5ce8',
+    text:'Étape 1 — Message initial\nEnvoyer "11111 message pour savoir si changement rdv derma pour chir"\nAllow reply = OUI\nBut : savoir si chirurgie ou dermatologie' },
+  { id:'g2_q',       x:1200, y:420,  w:260, h:48,  fs:13, color:'#f5c540',
+    text:'Étape 2 — Réponse reçue ?' },
+
+  // BRANCHE GAUCHE — pas de réponse
+  { id:'g2_nr',      x:380,  y:580,  w:230, h:44,  fs:12, color:'#64748b',
+    text:'❌ PAS DE RÉPONSE' },
+  { id:'g2_elig',    x:380,  y:730,  w:340, h:88,  fs:10, color:'#f97316',
+    text:'Le patient est éligible ?\n• CMU / AME\n• OU < 22 ans ET hors Paris (75)\n  / Neuilly (92200) / Levallois (92300)' },
+  { id:'g2_non_e',   x:130,  y:920,  w:210, h:52,  fs:10, color:'#475569',
+    text:'NON éligible\n→ aucune action, on attend' },
+  { id:'g2_oui_e',   x:570,  y:920,  w:260, h:52,  fs:10, color:'#e85555',
+    text:'OUI éligible\n→ NO REPLY direct (pas de relance)' },
+  { id:'g2_delai',   x:570,  y:1080, w:290, h:100, fs:9,  color:'#e85555',
+    text:'Délai NO REPLY :\n< 24h avant RDV → après 4h\n24h-48h avant RDV → après 6h\n48h-72h avant RDV → après 12h\n> 72h avant RDV → après 48h' },
+  { id:'g2_nr_act',  x:570,  y:1280, w:310, h:112, fs:9,  color:'#c0392b',
+    text:'Action NO REPLY :\n1. Envoyer "11111 message t NO REPLY chir"\n   → allow reply = NON\n2. Bloquer fiche patient (demandes + prise RDV)\n3. Annuler le rendez-vous\n4. Marquer traitée' },
+
+  // BRANCHE DROITE — réponse reçue
+  { id:'g2_rep',     x:2000, y:580,  w:230, h:44,  fs:12, color:'#20c997',
+    text:'✅ RÉPONSE REÇUE' },
+  { id:'g2_class',   x:2000, y:720,  w:230, h:44,  fs:12, color:'#20c997',
+    text:'Classifier la réponse' },
+
+  // CHIRURGIE
+  { id:'g2_chir',    x:1100, y:900,  w:230, h:44,  fs:12, color:'#a855f7',
+    text:'RÉPONSE = CHIRURGIE' },
+  { id:'g2_c_cmu',   x:770,  y:1080, w:260, h:80,  fs:9,  color:'#a855f7',
+    text:'CMU\n→ Envoyer "AAchir Cmu lesion\nbenigne insiste pour chir"\n→ allow reply = OUI' },
+  { id:'g2_c_ame',   x:1090, y:1080, w:280, h:96,  fs:9,  color:'#a855f7',
+    text:'AME\n→ Envoyer "AAAME chir\navertissement dépassement"\n→ allow reply = OUI\n• Si AME/CMU veut pas venir\n  → annuler le RDV' },
+  { id:'g2_c_norm',  x:1420, y:1080, w:270, h:80,  fs:9,  color:'#a855f7',
+    text:'NON CMU\n→ Transférer RDV vers agenda\nChirurgie Derm (2205691)\nmême jour même heure' },
+  { id:'g2_c_done',  x:1090, y:1270, w:190, h:40,  fs:10, color:'#20c997',
+    text:'✅ Marquer traitée' },
+
+  // DERMATO
+  { id:'g2_dm',      x:2000, y:900,  w:230, h:44,  fs:12, color:'#38bdf8',
+    text:'RÉPONSE = DERMATO' },
+  { id:'g2_dm_etr',  x:1790, y:1080, w:200, h:52,  fs:10, color:'#475569',
+    text:'Étranger ?\nOUI → SKIP, rien faire' },
+  { id:'g2_dm_noetr',x:2080, y:1080, w:190, h:44,  fs:11, color:'#38bdf8',
+    text:'NON étranger' },
+  { id:'g2_dm_act',  x:2080, y:1220, w:310, h:88,  fs:9,  color:'#38bdf8',
+    text:'1. Envoyer "11111 message REPLY\n   erreur rdv CHIR + Annulation GINA"\n   → allow reply = NON\n2. Annuler le RDV' },
+  { id:'g2_dm_cmu',  x:1890, y:1410, w:240, h:64,  fs:9,  color:'#e85555',
+    text:'CMU / AME ?\nOUI → Bloquer patient\n(demandes + prise RDV)' },
+  { id:'g2_dm_noc',  x:2210, y:1410, w:210, h:52,  fs:9,  color:'#20c997',
+    text:'NON CMU/AME\n→ pas de blocage' },
+  { id:'g2_dm_done', x:2080, y:1560, w:190, h:40,  fs:10, color:'#20c997',
+    text:'✅ Marquer traitée' },
+
+  // AMBIGU
+  { id:'g2_amb',     x:2800, y:900,  w:260, h:64,  fs:10, color:'#64748b',
+    text:'RÉPONSE = AMBIGU\nNi clairement chirurgie\nni clairement dermato' },
+  { id:'g2_amb_act', x:2800, y:1080, w:270, h:64,  fs:9,  color:'#475569',
+    text:'NE PAS RÉPONDRE\n→ Ajouter au tableau ambigus\npour décision manuelle' },
+
+  // RÈGLE TRANSVERSALE
+  { id:'g2_rule',    x:1500, y:1630, w:460, h:64,  fs:10, color:'#20c997',
+    text:'✅ Règle transversale\nAprès chaque traitement d\'un patient\n→ TOUJOURS marquer ses messages comme "Traitée"' },
+];
+const GINA2_INIT_EDGES = [
+  { id:'g2e01', from:'g2_start',    to:'g2_msg'     },
+  { id:'g2e02', from:'g2_msg',      to:'g2_q'       },
+  { id:'g2e03', from:'g2_q',        to:'g2_nr'      },
+  { id:'g2e04', from:'g2_q',        to:'g2_rep'     },
+  { id:'g2e05', from:'g2_nr',       to:'g2_elig'    },
+  { id:'g2e06', from:'g2_elig',     to:'g2_non_e'   },
+  { id:'g2e07', from:'g2_elig',     to:'g2_oui_e'   },
+  { id:'g2e08', from:'g2_oui_e',    to:'g2_delai'   },
+  { id:'g2e09', from:'g2_delai',    to:'g2_nr_act'  },
+  { id:'g2e10', from:'g2_rep',      to:'g2_class'   },
+  { id:'g2e11', from:'g2_class',    to:'g2_chir'    },
+  { id:'g2e12', from:'g2_class',    to:'g2_dm'      },
+  { id:'g2e13', from:'g2_class',    to:'g2_amb'     },
+  { id:'g2e14', from:'g2_chir',     to:'g2_c_cmu'   },
+  { id:'g2e15', from:'g2_chir',     to:'g2_c_ame'   },
+  { id:'g2e16', from:'g2_chir',     to:'g2_c_norm'  },
+  { id:'g2e17', from:'g2_c_cmu',    to:'g2_c_done'  },
+  { id:'g2e18', from:'g2_c_ame',    to:'g2_c_done'  },
+  { id:'g2e19', from:'g2_c_norm',   to:'g2_c_done'  },
+  { id:'g2e20', from:'g2_dm',       to:'g2_dm_etr'  },
+  { id:'g2e21', from:'g2_dm',       to:'g2_dm_noetr'},
+  { id:'g2e22', from:'g2_dm_noetr', to:'g2_dm_act'  },
+  { id:'g2e23', from:'g2_dm_act',   to:'g2_dm_cmu'  },
+  { id:'g2e24', from:'g2_dm_act',   to:'g2_dm_noc'  },
+  { id:'g2e25', from:'g2_dm_cmu',   to:'g2_dm_done' },
+  { id:'g2e26', from:'g2_dm_noc',   to:'g2_dm_done' },
+  { id:'g2e27', from:'g2_amb',      to:'g2_amb_act' },
+];
+
 let UID = 10;
 const gid = () => `n${UID++}`;
 
@@ -310,6 +407,7 @@ export default function App() {
   const [syncFs, setSyncFs] = useState(true);
   const [planningCells, setPlanningCells] = useState({});
   const [ginaData,      setGinaData]      = useState(null);
+  const [gina2Data,     setGina2Data]     = useState(null);
   const [clipboard,     setClipboard]     = useState([]); // partagé entre tous les onglets
   const [triggerEditIdP, setTriggerEditIdP] = useState(null); // déclencheur édition Parcours MA
   const [multiSel, setMultiSel] = useState(new Set());
@@ -384,7 +482,8 @@ export default function App() {
         if (d.pEdges?.length) setPEdges(d.pEdges);
         if (d.pViewBox) { setPViewBox(d.pViewBox); pViewBoxRef.current = d.pViewBox; }
         if (d.planningCells) setPlanningCells(d.planningCells);
-        if (d.ginaNodes?.length) setGinaData({ nodes: d.ginaNodes, edges: d.ginaEdges || [], viewBox: d.ginaViewBox });
+        if (d.ginaNodes?.length)  setGinaData({ nodes: d.ginaNodes, edges: d.ginaEdges || [], viewBox: d.ginaViewBox });
+        if (d.gina2Nodes?.length) setGina2Data({ nodes: d.gina2Nodes, edges: d.gina2Edges || [], viewBox: d.gina2ViewBox });
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
         UID = mx + 1;
       }
@@ -403,9 +502,10 @@ export default function App() {
       nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox,
       planningCells,
       ginaNodes: ginaData?.nodes, ginaEdges: ginaData?.edges, ginaViewBox: ginaData?.viewBox,
+      gina2Nodes: gina2Data?.nodes, gina2Edges: gina2Data?.edges, gina2ViewBox: gina2Data?.viewBox,
     }), 500);
     return () => clearTimeout(t);
-  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox, planningCells, ginaData, ready]);
+  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, pViewBox, planningCells, ginaData, gina2Data, ready]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -1273,7 +1373,7 @@ export default function App() {
         maxWidth:'calc(100vw - 12px)', justifyContent:'center'
       }}>
         {/* ── Onglets ── */}
-        {[{k:'mindmap',l:'⬡ Map'},{k:'planning',l:'▦ Planning'},{k:'gina',l:'⚕ GINA'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
+        {[{k:'mindmap',l:'⬡ Map'},{k:'planning',l:'▦ Planning'},{k:'gina',l:'⚕ GINA'},{k:'gina2',l:'⚕ GINA v2'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
           <button key={b.k} onClick={() => setTab(b.k)} style={{
             background: tab===b.k ? '#f5c540' : T.btnBg,
             color: tab===b.k ? '#1a1a1a' : T.btnTxt,
@@ -1796,6 +1896,20 @@ export default function App() {
           initViewBox={{ x: -80, y: -30, w: 2300, h: 1400 }}
           savedData={ginaData}
           onChange={setGinaData}
+          dark={dark}
+          clipboard={clipboard}
+          onClipboardChange={setClipboard}
+        />
+      )}
+
+      {/* ── Onglet GINA v2 ── */}
+      {tab === 'gina2' && ready && (
+        <WorkflowMindMap
+          initNodes={GINA2_INIT_NODES}
+          initEdges={GINA2_INIT_EDGES}
+          initViewBox={{ x: -100, y: -30, w: 3200, h: 1900 }}
+          savedData={gina2Data}
+          onChange={setGina2Data}
           dark={dark}
           clipboard={clipboard}
           onClipboardChange={setClipboard}
