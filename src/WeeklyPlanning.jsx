@@ -11,7 +11,10 @@ export default function WeeklyPlanning({ cells, onChange, dark }) {
   const [editCell, setEditCell]   = useState(null);
   const [inputVal, setInputVal]   = useState('');
   const [colorIdx, setColorIdx]   = useState(0);
-  const inputRef = useRef(null);
+  const [editTask, setEditTask]   = useState(null);  // { cellKey, idx }
+  const [editTaskVal, setEditTaskVal] = useState('');
+  const inputRef     = useRef(null);
+  const editTaskRef  = useRef(null);
 
   const T = dark ? {
     bg:         '#0e0e1a',
@@ -47,6 +50,27 @@ export default function WeeklyPlanning({ cells, onChange, dark }) {
     setInputVal('');
     setColorIdx(c => (c + 1) % TAG_COLORS.length);
     setEditCell(null);
+  };
+
+  const startEditTask = (cellKey, idx, currentText) => {
+    setEditCell(null);
+    setEditTask({ cellKey, idx });
+    setEditTaskVal(currentText);
+    setTimeout(() => editTaskRef.current?.focus(), 20);
+  };
+
+  const commitEditTask = () => {
+    if (!editTask) return;
+    const { cellKey, idx } = editTask;
+    const val = editTaskVal.trim();
+    if (val) {
+      const tasks = (cells[cellKey] || []).map((t, i) =>
+        i === idx ? { ...(typeof t === 'object' ? t : { color: '#4b5ce8' }), text: val } : t
+      );
+      onChange({ ...cells, [cellKey]: tasks });
+    }
+    setEditTask(null);
+    setEditTaskVal('');
   };
 
   const removeTask = (day, slot, idx) => {
@@ -132,30 +156,57 @@ export default function WeeklyPlanning({ cells, onChange, dark }) {
                   }}>
                     <div style={{ minHeight: 56, display: 'flex', flexDirection: 'column', gap: 3 }}>
 
-                      {tasks.map((task, i) => (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'flex-start', gap: 2,
-                          background: typeof task === 'object' ? task.color : '#4b5ce8',
-                          color: '#fff',
-                          borderRadius: 5,
-                          padding: '2px 4px 2px 6px',
-                          fontSize: 11, lineHeight: 1.35,
-                          wordBreak: 'break-word',
-                        }}>
-                          <span style={{ flex: 1 }}>
-                            {typeof task === 'object' ? task.text : task}
-                          </span>
-                          <button
-                            onClick={() => removeTask(day, slot, i)}
-                            style={{
-                              background: 'none', border: 'none',
-                              color: 'rgba(255,255,255,0.75)',
-                              cursor: 'pointer', padding: '0 1px',
-                              fontSize: 13, lineHeight: 1, flexShrink: 0,
+                      {tasks.map((task, i) => {
+                        const taskText  = typeof task === 'object' ? task.text  : task;
+                        const taskColor = typeof task === 'object' ? task.color : '#4b5ce8';
+                        const isEditingThis = editTask?.cellKey === cellKey && editTask?.idx === i;
+                        return isEditingThis ? (
+                          <input
+                            key={i}
+                            ref={editTaskRef}
+                            value={editTaskVal}
+                            onChange={e => setEditTaskVal(e.target.value)}
+                            onBlur={commitEditTask}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter')  commitEditTask();
+                              if (e.key === 'Escape') { setEditTask(null); setEditTaskVal(''); }
                             }}
-                          >×</button>
-                        </div>
-                      ))}
+                            style={{
+                              fontSize: 11, padding: '2px 6px',
+                              borderRadius: 5,
+                              border: `2px solid ${taskColor}`,
+                              background: T.inputBg,
+                              color: T.text, outline: 'none',
+                              width: '100%', boxSizing: 'border-box',
+                            }}
+                          />
+                        ) : (
+                          <div key={i} style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 2,
+                            background: taskColor,
+                            color: '#fff',
+                            borderRadius: 5,
+                            padding: '2px 4px 2px 6px',
+                            fontSize: 11, lineHeight: 1.35,
+                            wordBreak: 'break-word',
+                            cursor: 'text',
+                          }}>
+                            <span
+                              style={{ flex: 1 }}
+                              onClick={() => startEditTask(cellKey, i, taskText)}
+                            >{taskText}</span>
+                            <button
+                              onClick={() => removeTask(day, slot, i)}
+                              style={{
+                                background: 'none', border: 'none',
+                                color: 'rgba(255,255,255,0.75)',
+                                cursor: 'pointer', padding: '0 1px',
+                                fontSize: 13, lineHeight: 1, flexShrink: 0,
+                              }}
+                            >×</button>
+                          </div>
+                        );
+                      })}
 
                       {editing ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
