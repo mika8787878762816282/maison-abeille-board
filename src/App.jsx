@@ -1,8 +1,90 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import ParcoursMindMap, { INIT_NODES as P_INIT_NODES, INIT_EDGES as P_INIT_EDGES } from "./ParcoursMindMap.jsx";
+import WeeklyPlanning from "./WeeklyPlanning.jsx";
+import WorkflowMindMap from "./WorkflowMindMap.jsx";
 
 const PAL = ['#f5c540','#4ade80','#20c997','#4b5ce8','#e85555','#38bdf8','#a855f7','#f97316'];
+
+// ── Workflow GINA ─────────────────────────────────────────────────
+const GINA_INIT_NODES = [
+  { id:'gn_start', x:1100, y:80,  w:340, h:56,
+    text:'RDV agenda GEORGIA · 2162162\nMotif : 1ère consult. chir. derma', color:'#3a1a6e', fs:11 },
+  { id:'gn_msg1', x:1100, y:200, w:310, h:52,
+    text:'📤 MSG : "11111 derma → chir ?"\nAllow reply = OUI', color:'#4b5ce8', fs:11 },
+  { id:'gn_q', x:1100, y:330, w:220, h:44,
+    text:'Réponse reçue ?', color:'#f5c540', fs:13 },
+  { id:'gn_nr', x:350, y:450, w:210, h:44,
+    text:'❌ Pas de réponse', color:'#64748b', fs:12 },
+  { id:'gn_elig', x:350, y:570, w:290, h:66,
+    text:'Éligible ?\n• CMU ou AME\n• OU <22 ans hors 75 / 92200 / 92300', color:'#f97316', fs:10 },
+  { id:'gn_non_e', x:130, y:710, w:170, h:44,
+    text:'NON éligible\n→ attendre', color:'#475569', fs:10 },
+  { id:'gn_oui_e', x:480, y:710, w:160, h:44,
+    text:'OUI éligible\n→ NO REPLY', color:'#e85555', fs:11 },
+  { id:'gn_delai', x:480, y:830, w:240, h:82,
+    text:'Délai NO REPLY :\n< 24h → après 4h\n24–48h → après 6h\n48–72h → après 12h\n> 72h → après 48h', color:'#e85555', fs:9 },
+  { id:'gn_nr_act', x:480, y:980, w:260, h:72,
+    text:'1. MSG "11111 NO REPLY chir"\n   Allow reply = NON\n2. Bloquer fiche patient\n3. Annuler le RDV\n4. ✅ Marquer traitée', color:'#c0392b', fs:9 },
+  { id:'gn_rep', x:1700, y:450, w:210, h:44,
+    text:'✅ Réponse reçue', color:'#20c997', fs:12 },
+  { id:'gn_class', x:1700, y:570, w:210, h:44,
+    text:'Classifier la réponse', color:'#20c997', fs:12 },
+  { id:'gn_chir', x:880, y:720, w:160, h:44,
+    text:'CHIRURGIE', color:'#a855f7', fs:13 },
+  { id:'gn_c_cmu', x:640, y:860, w:215, h:64,
+    text:'CMU →\n"AAchir Cmu lesion\nbenigne insiste chir"\nAllow reply = OUI', color:'#a855f7', fs:9 },
+  { id:'gn_c_ame', x:870, y:860, w:215, h:64,
+    text:'AME →\n"AAAME chir avertissement\ndépassement"\nAllow reply = OUI', color:'#a855f7', fs:9 },
+  { id:'gn_c_norm', x:1110, y:860, w:230, h:64,
+    text:'NON CMU/AME →\nTransférer vers agenda\nChir Derm 2205691\nmême jour / heure', color:'#a855f7', fs:9 },
+  { id:'gn_c_annul', x:755, y:990, w:240, h:44,
+    text:'CMU/AME refuse → annuler RDV', color:'#e85555', fs:9 },
+  { id:'gn_dm', x:1580, y:720, w:150, h:44,
+    text:'DERMATO', color:'#38bdf8', fs:13 },
+  { id:'gn_dm_etr', x:1430, y:860, w:170, h:44,
+    text:'Étranger\n→ SKIP, rien faire', color:'#475569', fs:10 },
+  { id:'gn_dm_noetr', x:1650, y:860, w:170, h:44,
+    text:'NON étranger', color:'#38bdf8', fs:12 },
+  { id:'gn_dm_act', x:1650, y:975, w:270, h:72,
+    text:'1. MSG "11111 REPLY erreur RDV\n   CHIR + Annulation GINA"\n   Allow reply = NON\n2. Annuler le RDV', color:'#38bdf8', fs:9 },
+  { id:'gn_dm_cmu', x:1490, y:1110, w:220, h:44,
+    text:'CMU/AME → bloquer patient\n(demandes + prise RDV)', color:'#e85555', fs:9 },
+  { id:'gn_dm_noc', x:1760, y:1110, w:190, h:44,
+    text:'NON CMU/AME\n→ pas de blocage', color:'#20c997', fs:9 },
+  { id:'gn_amb', x:2010, y:720, w:150, h:44,
+    text:'AMBIGU', color:'#64748b', fs:13 },
+  { id:'gn_amb_act', x:2010, y:860, w:240, h:56,
+    text:'Ne pas répondre\n→ Ajouter tableau ambigus\n(décision manuelle)', color:'#475569', fs:9 },
+  { id:'gn_rule', x:1100, y:1230, w:360, h:44,
+    text:'✅ Toujours marquer "Traitée" après traitement', color:'#20c997', fs:10 },
+];
+const GINA_INIT_EDGES = [
+  { id:'ge01', from:'gn_start',    to:'gn_msg1' },
+  { id:'ge02', from:'gn_msg1',     to:'gn_q' },
+  { id:'ge03', from:'gn_q',        to:'gn_nr' },
+  { id:'ge04', from:'gn_q',        to:'gn_rep' },
+  { id:'ge05', from:'gn_nr',       to:'gn_elig' },
+  { id:'ge06', from:'gn_elig',     to:'gn_non_e' },
+  { id:'ge07', from:'gn_elig',     to:'gn_oui_e' },
+  { id:'ge08', from:'gn_oui_e',    to:'gn_delai' },
+  { id:'ge09', from:'gn_delai',    to:'gn_nr_act' },
+  { id:'ge10', from:'gn_rep',      to:'gn_class' },
+  { id:'ge11', from:'gn_class',    to:'gn_chir' },
+  { id:'ge12', from:'gn_class',    to:'gn_dm' },
+  { id:'ge13', from:'gn_class',    to:'gn_amb' },
+  { id:'ge14', from:'gn_chir',     to:'gn_c_cmu' },
+  { id:'ge15', from:'gn_chir',     to:'gn_c_ame' },
+  { id:'ge16', from:'gn_chir',     to:'gn_c_norm' },
+  { id:'ge17', from:'gn_c_cmu',    to:'gn_c_annul' },
+  { id:'ge18', from:'gn_c_ame',    to:'gn_c_annul' },
+  { id:'ge19', from:'gn_dm',       to:'gn_dm_etr' },
+  { id:'ge20', from:'gn_dm',       to:'gn_dm_noetr' },
+  { id:'ge21', from:'gn_dm_noetr', to:'gn_dm_act' },
+  { id:'ge22', from:'gn_dm_act',   to:'gn_dm_cmu' },
+  { id:'ge23', from:'gn_dm_act',   to:'gn_dm_noc' },
+  { id:'ge24', from:'gn_amb',      to:'gn_amb_act' },
+];
 let UID = 10;
 const gid = () => `n${UID++}`;
 
@@ -188,6 +270,8 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState('mindmap');
   const [syncFs, setSyncFs] = useState(true);
+  const [planningCells, setPlanningCells] = useState({});
+  const [ginaData, setGinaData] = useState(null);
   const [multiSel, setMultiSel] = useState(new Set());
   const [rectDraw, setRectDraw] = useState(null);
 
@@ -244,6 +328,8 @@ export default function App() {
         if (d.edgeColor) setEdgeColor(d.edgeColor);
         if (d.pNodes?.length) setPNodes(d.pNodes);
         if (d.pEdges?.length) setPEdges(d.pEdges);
+        if (d.planningCells) setPlanningCells(d.planningCells);
+        if (d.ginaNodes?.length) setGinaData({ nodes: d.ginaNodes, edges: d.ginaEdges || [], viewBox: d.ginaViewBox });
         const mx = Math.max(10, ...d.nodes.map(n => parseInt(n.id.slice(1)) || 0));
         UID = mx + 1;
       }
@@ -259,9 +345,13 @@ export default function App() {
   // Auto-save
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => save({ nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges }), 500);
+    const t = setTimeout(() => save({
+      nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges,
+      planningCells,
+      ginaNodes: ginaData?.nodes, ginaEdges: ginaData?.edges, ginaViewBox: ginaData?.viewBox,
+    }), 500);
     return () => clearTimeout(t);
-  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, ready]);
+  }, [nodes, edges, dark, viewBox, edgeColor, pNodes, pEdges, planningCells, ginaData, ready]);
 
   useEffect(() => {
     if (editId) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 15);
@@ -905,7 +995,7 @@ export default function App() {
         maxWidth:'calc(100vw - 12px)', justifyContent:'center'
       }}>
         {/* ── Onglets ── */}
-        {[{k:'mindmap',l:'⬡ Map'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
+        {[{k:'mindmap',l:'⬡ Map'},{k:'planning',l:'▦ Planning'},{k:'gina',l:'⚕ GINA'},{k:'parcours',l:'☷ Parcours MA'}].map(b => (
           <button key={b.k} onClick={() => setTab(b.k)} style={{
             background: tab===b.k ? '#f5c540' : T.btnBg,
             color: tab===b.k ? '#1a1a1a' : T.btnTxt,
@@ -1307,7 +1397,7 @@ export default function App() {
       </div>
 
       {/* FAB image — portal sur document.body pour échapper overflow:hidden */}
-      {createPortal(
+      {tab !== 'planning' && tab !== 'gina' && createPortal(
         <button
           onClick={() => imgFileRef.current?.click()}
           disabled={uploading}
@@ -1328,6 +1418,23 @@ export default function App() {
           <span style={{fontSize:11}}>IMG</span>
         </button>,
         document.body
+      )}
+
+      {/* ── Onglet Planning ── */}
+      {tab === 'planning' && (
+        <WeeklyPlanning cells={planningCells} onChange={setPlanningCells} dark={dark} />
+      )}
+
+      {/* ── Onglet GINA ── */}
+      {tab === 'gina' && ready && (
+        <WorkflowMindMap
+          initNodes={GINA_INIT_NODES}
+          initEdges={GINA_INIT_EDGES}
+          initViewBox={{ x: -80, y: -30, w: 2300, h: 1400 }}
+          savedData={ginaData}
+          onChange={setGinaData}
+          dark={dark}
+        />
       )}
 
       {/* ── Onglet Parcours MA — toujours monté, juste caché ── */}
