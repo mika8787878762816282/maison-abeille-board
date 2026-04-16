@@ -264,6 +264,7 @@ export default function App() {
   const [selEdge, setSelEdge] = useState(null);
   const [edgeColor, setEdgeColor] = useState('#888888');
   const [conn, setConn]   = useState(null);
+  const [connDrag, setConnDrag] = useState(null); // { fromId, x, y } preview ligne pendant drag
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 1000, h: 800 });
@@ -408,7 +409,7 @@ export default function App() {
       return null;
     };
 
-    const startGesture = (points, target) => {
+    const startGesture = (points, target, button = 0) => {
       const s = stateRef.current;
 
       if (points.length >= 2) {
@@ -480,23 +481,18 @@ export default function App() {
           s.gesture = { type: 'tap' };
           return;
         }
-        const node = s.nodes.find(n => n.id === nodeId);
-        if (node) {
-          setSel(nodeId);
-          setSelEdge(null);
-          const w  = toWorld(t.clientX, t.clientY);
-          const ms = s.multiSel || new Set();
-          if (ms.has(nodeId) && ms.size > 1) {
-            const groupOffsets = {};
-            ms.forEach(id => {
-              const n = s.nodes.find(n => n.id === id);
-              if (n) groupOffsets[id] = { ox: n.x - w.x, oy: n.y - w.y };
-            });
-            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, groupOffsets, snapSaved: false };
-          } else {
-            s.gesture = { type: 'move', id: nodeId, ox: w.x - node.x, oy: w.y - node.y, snapSaved: false };
-          }
+        // Clic gauche → connect drag (faire un lien)
+        if (button === 0) {
+          const w = toWorld(t.clientX, t.clientY);
+          setConn(nodeId);
+          setConnDrag({ fromId: nodeId, x: w.x, y: w.y });
+          s.gesture = { type: 'connect_drag', fromId: nodeId, lastClientX: t.clientX, lastClientY: t.clientY };
+          return;
         }
+        // Clic droit → sélectionner seulement, pas de déplacement
+        setSel(nodeId);
+        setSelEdge(null);
+        s.gesture = { type: 'tap' };
         return;
       }
 
@@ -518,11 +514,28 @@ export default function App() {
       setSelEdge(null);
       setSelAll(false);
       setMultiSel(new Set());
-      s.gesture = {
-        type: 'pan',
-        startX: t.clientX, startY: t.clientY,
-        startVB: { ...s.viewBox },
-      };
+      if (button === 2) {
+        // Clic droit sur vide → créer un nœud taille moyenne
+        s.saveSnap?.();
+        const w = toWorld(t.clientX, t.clientY);
+        const color = PAL[Math.floor(Math.random() * PAL.length)];
+        const nds = s.nodes;
+        const avgW  = nds.length ? Math.round(nds.reduce((a, n) => a + (n.w  || 140), 0) / nds.length) : 140;
+        const avgH  = nds.length ? Math.round(nds.reduce((a, n) => a + (n.h  ||  48), 0) / nds.length) :  48;
+        const avgFs = nds.length ? Math.round(nds.reduce((a, n) => a + (n.fs ||  14), 0) / nds.length) :  14;
+        const nn = { id: gid(), x: w.x, y: w.y, w: avgW, h: avgH, text: 'Nouveau', color, fs: avgFs };
+        setNodes(p => [...p, nn]);
+        setSel(nn.id);
+        setTimeout(() => { setEditId(nn.id); setEditVal('Nouveau'); }, 30);
+        s.gesture = { type: 'tap' };
+      } else {
+        // Clic gauche sur vide → pan
+        s.gesture = {
+          type: 'pan',
+          startX: t.clientX, startY: t.clientY,
+          startVB: { ...s.viewBox },
+        };
+      }
     };
 
     const moveGesture = (points) => {
@@ -581,6 +594,15 @@ export default function App() {
         return;
       }
 
+      if (g.type === 'connect_drag' && points.length >= 1) {
+        const t = points[0];
+        const w = toWorld(t.clientX, t.clientY);
+        g.lastClientX = t.clientX;
+        g.lastClientY = t.clientY;
+        setConnDrag({ fromId: g.fromId, x: w.x, y: w.y });
+        return;
+      }
+
       if (g.type === 'resize' && points.length >= 1) {
         if (!g.snapSaved) { s.saveSnap?.(); g.snapSaved = true; }
         const t = points[0];
@@ -600,16 +622,62 @@ export default function App() {
       }
     };
 
-    const endGesture = () => { stateRef.current.gesture = null; };
+    const endGesture = () => {
+      const s = stateRef.current;
+      const g = s.gesture;
+
+      if (g?.type === 'connect_drag') {
+        const cx = g.lastClientX, cy = g.lastClientY;
+        let toId = null;
+        if (cx != null && cy != null) {
+          const el = document.elementFromPoint(cx, cy);
+          const hit = el ? hitTarget(el) : null;
+          if (hit?.getAttribute('data-role') === 'node') toId = hit.getAttribute('data-id');
+        }
+        if (toId && toId !== g.fromId) {
+          // Lien vers nœud existant
+          s.saveSnap?.();
+          setEdges(p => {
+            const dup = p.find(e =>
+              (e.from === g.fromId && e.to === toId) ||
+              (e.from === toId && e.to === g.fromId));
+            return dup ? p : [...p, { id: gid(), from: g.fromId, to: toId }];
+          });
+        } else if (!toId && cx != null && cy != null) {
+          // Lâcher dans le vide → nouveau nœud connecté + taille moyenne
+          const w = toWorld(cx, cy);
+          const color = PAL[Math.floor(Math.random() * PAL.length)];
+          const nds = s.nodes;
+          const avgW  = nds.length ? Math.round(nds.reduce((a, n) => a + (n.w  || 140), 0) / nds.length) : 140;
+          const avgH  = nds.length ? Math.round(nds.reduce((a, n) => a + (n.h  ||  48), 0) / nds.length) :  48;
+          const avgFs = nds.length ? Math.round(nds.reduce((a, n) => a + (n.fs ||  14), 0) / nds.length) :  14;
+          const nn = { id: gid(), x: w.x, y: w.y, w: avgW, h: avgH, text: 'Nouveau', color, fs: avgFs };
+          s.saveSnap?.();
+          setNodes(p => [...p, nn]);
+          setEdges(p => [...p, { id: gid(), from: g.fromId, to: nn.id }]);
+          setSel(nn.id);
+        }
+        setConnDrag(null);
+        setConn(null);
+        if (s.mode === 'connect') setMode('select');
+      }
+
+      s.gesture = null;
+    };
 
     const onTS = (e) => { e.preventDefault(); startGesture([...e.touches], e.target); };
     const onTM = (e) => { e.preventDefault(); moveGesture([...e.touches]); };
     const onTE = (e) => { e.preventDefault(); if (e.touches.length === 0) endGesture(); };
 
     let mouseDown = false;
-    const onMD = (e) => { mouseDown = true; startGesture([{ clientX: e.clientX, clientY: e.clientY }], e.target); };
+    const onMD = (e) => {
+      if (e.button === 2) e.preventDefault();
+      mouseDown = true;
+      startGesture([{ clientX: e.clientX, clientY: e.clientY }], e.target, e.button);
+    };
     const onMM = (e) => { if (mouseDown) moveGesture([{ clientX: e.clientX, clientY: e.clientY }]); };
     const onMU = () => { mouseDown = false; endGesture(); };
+    const onContextMenu = (e) => e.preventDefault();
 
     const onWheel = (e) => {
       e.preventDefault();
@@ -636,6 +704,7 @@ export default function App() {
     svg.addEventListener('touchend',    onTE, { passive: false });
     svg.addEventListener('touchcancel', onTE, { passive: false });
     svg.addEventListener('mousedown', onMD);
+    svg.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('mousemove', onMM);
     window.addEventListener('mouseup',   onMU);
     svg.addEventListener('wheel', onWheel, { passive: false });
@@ -646,6 +715,7 @@ export default function App() {
       svg.removeEventListener('touchend',    onTE);
       svg.removeEventListener('touchcancel', onTE);
       svg.removeEventListener('mousedown', onMD);
+      svg.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('mousemove', onMM);
       window.removeEventListener('mouseup',   onMU);
       svg.removeEventListener('wheel', onWheel);
@@ -1465,6 +1535,20 @@ export default function App() {
             style={{ pointerEvents: 'none' }}
           />
         )}
+
+        {/* Preview ligne connect drag */}
+        {connDrag && (() => {
+          const fromNode = nodes.find(n => n.id === connDrag.fromId);
+          if (!fromNode) return null;
+          const p1 = borderPt(fromNode, connDrag.x, connDrag.y);
+          return (
+            <line
+              x1={p1.x} y1={p1.y} x2={connDrag.x} y2={connDrag.y}
+              stroke="#20c997" strokeWidth={2} strokeDasharray="6 4"
+              strokeLinecap="round" style={{ pointerEvents: 'none' }}
+            />
+          );
+        })()}
 
         {/* Edges */}
         {edges.map(eg => {
