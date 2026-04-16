@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bilan Envois Doctolib — Maison Abeille</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 32px 16px; }
+  h1 { font-size: 1.6rem; font-weight: 700; color: #f5c540; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .card { background: #1e2230; border-radius: 12px; padding: 20px; border: 1px solid #2d3748; }
+  .card-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .card-value { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+  .card-sub { font-size: 0.75rem; color: #94a3b8; margin-top: 6px; }
+  .green  { color: #4ade80; }
+  .yellow { color: #f5c540; }
+  .red    { color: #f87171; }
+  .blue   { color: #38bdf8; }
+  .purple { color: #a855f7; }
+
+  section { margin-bottom: 32px; }
+  h2 { font-size: 1rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #2d3748; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  th { text-align: left; padding: 8px 12px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.72rem; letter-spacing: .05em; border-bottom: 1px solid #2d3748; }
+  td { padding: 9px 12px; border-bottom: 1px solid #1a2035; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+  .badge-green  { background: rgba(74,222,128,.15); color: #4ade80; }
+  .badge-red    { background: rgba(248,113,113,.15); color: #f87171; }
+  .badge-yellow { background: rgba(245,197,64,.15); color: #f5c540; }
+  .badge-blue   { background: rgba(56,189,248,.15); color: #38bdf8; }
+  .badge-gray   { background: rgba(100,116,139,.15); color: #94a3b8; }
+  .badge-pause  { background: rgba(168,85,247,.15); color: #a855f7; }
+
+  .warn-box { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.3); border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+  .warn-box h3 { color: #f87171; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .warn-box ul { padding-left: 18px; color: #cbd5e1; font-size: 0.82rem; line-height: 1.7; }
+  .rule-box { background: rgba(74,222,128,.06); border: 1px solid rgba(74,222,128,.2); border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+  .rule-box h3 { color: #4ade80; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .rule-box ul { padding-left: 18px; color: #cbd5e1; font-size: 0.82rem; line-height: 1.8; }
+  code { background: #0f1117; padding: 1px 6px; border-radius: 4px; font-size: 0.8em; color: #a855f7; font-family: monospace; }
+  .progress-bar { background: #2d3748; border-radius: 99px; height: 6px; margin-top: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<h1>Bilan Envois Doctolib</h1>
+<p class="subtitle">Maison Abeille — Session 9 → 16 avril 2026 — Généré par Claude</p>
+
+<!-- KPIs -->
+<div class="grid">
+  <div class="card">
+    <div class="card-label">Georgia envoyés</div>
+    <div class="card-value green">~703</div>
+    <div class="card-sub">sur ~808 patients traités</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:87%;background:#4ade80"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-label">Chir Derm envoyés</div>
+    <div class="card-value blue">288</div>
+    <div class="card-sub">sur 330 patients (42 skip)</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:87%;background:#38bdf8"></div></div>
+  </div>
+  <div class="card">
+    <div class="card-label">Skip total</div>
+    <div class="card-value yellow">~197</div>
+    <div class="card-sub">déjà contactés / pas de contact</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Fail</div>
+    <div class="card-value green">0</div>
+    <div class="card-sub">aucune erreur d'envoi</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Réponses auto ⚠️</div>
+    <div class="card-value red">~550</div>
+    <div class="card-sub">envoyées sans filtre agenda (erreur)</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Doublons Chir</div>
+    <div class="card-value red">∞</div>
+    <div class="card-sub">3 batches sans dédup — Razafi x5, Barret x4…</div>
+  </div>
+</div>
+
+<!-- Détail par session -->
+<section>
+  <h2>Détail envois Georgia (2162162) — template "11111"</h2>
+  <table>
+    <tr><th>Date</th><th>Envoyés</th><th>Skip</th><th>Total patients</th><th>Méthode</th><th>Motif</th></tr>
+    <tr>
+      <td>09/04/2026</td>
+      <td><span class="badge badge-green">4</span></td>
+      <td>—</td>
+      <td>52</td>
+      <td>UI manuelle</td>
+      <td>CMU + AME uniquement</td>
+    </tr>
+    <tr>
+      <td>11/04/2026</td>
+      <td><span class="badge badge-green">9</span></td>
+      <td>1 (pas de contact)</td>
+      <td>48</td>
+      <td>UI manuelle</td>
+      <td>Tous motifs du jour</td>
+    </tr>
+    <tr>
+      <td>13/04/2026</td>
+      <td><span class="badge badge-green">~40</span></td>
+      <td>—</td>
+      <td>~54</td>
+      <td>UI manuelle</td>
+      <td>Tous motifs du jour</td>
+    </tr>
+    <tr>
+      <td>14/04/2026</td>
+      <td><span class="badge badge-green">~650</span></td>
+      <td>~155</td>
+      <td>~808</td>
+      <td>Script Node.js (d2p)</td>
+      <td>TOUS motifs 15/04→13/07 ⚠️ (aurait dû = 1ère consult. chir. seulement)</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>Détail envois Chirurgie Derm (2205691) — template "11111"</h2>
+  <table>
+    <tr><th>Date</th><th>Envoyés</th><th>Skip</th><th>Total</th><th>Méthode</th><th>Problème</th></tr>
+    <tr>
+      <td>14/04/2026</td>
+      <td><span class="badge badge-blue">288</span></td>
+      <td>42</td>
+      <td>330</td>
+      <td>Script Node.js (d2p)</td>
+      <td class="red">3 batches lancés sans dédup → doublons massifs</td>
+    </tr>
+  </table>
+</section>
+
+<!-- D2P sans que le patient parle -->
+<section>
+  <h2>Messages envoyés sans que le patient parle (d2p unilatéraux)</h2>
+  <p style="font-size:0.8rem;color:#94a3b8;margin-bottom:14px">Tous ces envois ont été faits sur des patients qui n'avaient <strong>aucune conversation existante</strong> — c'est nous qui avons pris contact en premier.</p>
+  <table>
+    <tr><th>Template</th><th>Agenda</th><th>Nb patients</th><th>Condition d'envoi</th><th>Allow reply</th></tr>
+    <tr>
+      <td>11111 — changement derma → chir ?</td>
+      <td>Georgia 2162162</td>
+      <td class="green">~703</td>
+      <td>0 conversation existante + RDV futur</td>
+      <td><span class="badge badge-green">OUI</span></td>
+    </tr>
+    <tr>
+      <td>11111 — changement derma → chir ?</td>
+      <td>Chir Derm 2205691</td>
+      <td class="blue">288</td>
+      <td>0 conversation existante + RDV futur</td>
+      <td><span class="badge badge-green">OUI</span></td>
+    </tr>
+    <tr>
+      <td>11111 NO REPLY chir</td>
+      <td>Georgia 2162162</td>
+      <td class="yellow">~qques dizaines</td>
+      <td>Pas de réponse au "11111" + éligible (CMU/AME ou &lt;22 ans hors 75)</td>
+      <td><span class="badge badge-red">NON</span></td>
+    </tr>
+    <tr>
+      <td>111 cmu chir</td>
+      <td>Chir Derm 2205691</td>
+      <td class="red">⚠️ doublons</td>
+      <td>RDV chir + mutuelle CMU/AME — 0 conv. existante</td>
+      <td><span class="badge badge-green">OUI</span></td>
+    </tr>
+    <tr>
+      <td>111 Normal chir</td>
+      <td>Chir Derm 2205691</td>
+      <td class="red">⚠️ doublons</td>
+      <td>RDV chir + non CMU/AME — 0 conv. existante</td>
+      <td><span class="badge badge-gray">NON</span></td>
+    </tr>
+    <tr>
+      <td>Réponses standard (prix, adresse…)</td>
+      <td>Toutes ⚠️</td>
+      <td class="red">~550</td>
+      <td>Pattern texte dans conversation — SANS filtre agenda (erreur)</td>
+      <td><span class="badge badge-gray">—</span></td>
+    </tr>
+  </table>
+  <p style="margin-top:10px;font-size:0.78rem;color:#4ade80">Total messages envoyés sans demande préalable du patient : <strong style="color:#4ade80">~991 + doublons chir + ~550 réponses auto</strong></p>
+</section>
+
+<!-- Templates utilisés -->
+<section>
+  <h2>Templates envoyés</h2>
+  <table>
+    <tr><th>Template</th><th>UUID</th><th>Allow reply</th><th>Utilisé pour</th><th>Nb envois est.</th></tr>
+    <tr>
+      <td>11111 — changement derma → chir ?</td>
+      <td><code>76188951…</code></td>
+      <td><span class="badge badge-green">OUI</span></td>
+      <td>Georgia + Chir Derm — envoi initial</td>
+      <td class="green">~938</td>
+    </tr>
+    <tr>
+      <td>11111 REPLY erreur rdv CHIR + Annulation GINA</td>
+      <td><code>8f1fd765…</code></td>
+      <td><span class="badge badge-red">NON</span></td>
+      <td>Réponse "DERMATO" → annulation</td>
+      <td class="yellow">quelques dizaines</td>
+    </tr>
+    <tr>
+      <td>11111 NO REPLY chir</td>
+      <td><code>5f614e83…</code></td>
+      <td><span class="badge badge-red">NON</span></td>
+      <td>Absence réponse + éligible NO REPLY</td>
+      <td class="yellow">quelques dizaines</td>
+    </tr>
+    <tr>
+      <td>AAchir Cmu lésion bénigne insiste chir</td>
+      <td><code>fbd30ab0…</code></td>
+      <td><span class="badge badge-green">OUI</span></td>
+      <td>Réponse CHIRURGIE + CMU</td>
+      <td class="blue">~30</td>
+    </tr>
+    <tr>
+      <td>AAAME chir avertissement dépassement</td>
+      <td><code>428dcdef…</code></td>
+      <td><span class="badge badge-green">OUI</span></td>
+      <td>Réponse CHIRURGIE + AME</td>
+      <td class="blue">~15</td>
+    </tr>
+    <tr>
+      <td>111 cmu chir</td>
+      <td><code>795d3e52…</code></td>
+      <td><span class="badge badge-green">OUI</span></td>
+      <td>Chir Derm — envoi initial CMU/AME</td>
+      <td class="red">⚠️ Doublons</td>
+    </tr>
+    <tr>
+      <td>111 Normal chir</td>
+      <td><code>f75521f6…</code></td>
+      <td><span class="badge badge-gray">NON</span></td>
+      <td>Chir Derm — envoi initial non-CMU</td>
+      <td class="red">⚠️ Doublons</td>
+    </tr>
+    <tr>
+      <td>Réponses standard (prix, adresse, ordonnance…)</td>
+      <td>—</td>
+      <td>—</td>
+      <td>Auto-réponse toutes conversations</td>
+      <td class="red">⚠️ ~550 sans filtre agenda</td>
+    </tr>
+  </table>
+</section>
+
+<!-- Tâches auto -->
+<section>
+  <h2>Tâches automatiques (cron)</h2>
+  <table>
+    <tr><th>Tâche</th><th>Fréquence</th><th>Agenda</th><th>Action</th><th>Statut</th></tr>
+    <tr>
+      <td><code>georgia-chir-auto-message</code></td>
+      <td>*/20 min</td>
+      <td>Georgia 2162162</td>
+      <td>Envoi initial "11111" aux nouveaux patients</td>
+      <td><span class="badge badge-green">✅ Actif</span></td>
+    </tr>
+    <tr>
+      <td><code>georgia-chir-response-relance</code></td>
+      <td>*/30 min</td>
+      <td>Georgia 2162162</td>
+      <td>Classifie réponses + NO REPLY direct</td>
+      <td><span class="badge badge-green">✅ Actif</span></td>
+    </tr>
+    <tr>
+      <td><code>assouline-carto-auto-message</code></td>
+      <td>—</td>
+      <td>Assouline 1078064</td>
+      <td>Envoi initial cartographie 350€</td>
+      <td><span class="badge badge-pause">⏸ En pause</span></td>
+    </tr>
+    <tr>
+      <td><code>chir-derm-auto-message</code></td>
+      <td>—</td>
+      <td>Chir Derm 2205691</td>
+      <td>Envoi initial CMU/Normal</td>
+      <td><span class="badge badge-pause">⏸ En pause</span></td>
+    </tr>
+    <tr>
+      <td><code>chir-lellouch-response-relance</code></td>
+      <td>—</td>
+      <td>Chir Derm 2205691</td>
+      <td>Gestion réponses chir</td>
+      <td><span class="badge badge-pause">⏸ En pause</span></td>
+    </tr>
+    <tr>
+      <td>Lellouch (941071)</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="badge badge-gray">🚫 Aucun workflow</span></td>
+    </tr>
+  </table>
+</section>
+
+<!-- Motifs par agenda -->
+<section>
+  <h2>Motifs ciblés par agenda</h2>
+  <table>
+    <tr><th>Agenda</th><th>ID Agenda</th><th>Motif ciblé</th><th>Visit Motive ID</th><th>Template</th></tr>
+    <tr>
+      <td>Georgia KANELLOPOULOU</td>
+      <td><code>2162162</code></td>
+      <td>1ère consultation chir. derma <span class="red">*</span></td>
+      <td>—</td>
+      <td>11111</td>
+    </tr>
+    <tr>
+      <td>Chirurgie Derm</td>
+      <td><code>2205691</code></td>
+      <td>Consultation chirurgie dermatologique</td>
+      <td>15278554, 14761212</td>
+      <td>111 cmu / 111 Normal</td>
+    </tr>
+    <tr>
+      <td>Assouline</td>
+      <td><code>1078064</code></td>
+      <td>Cartographie FOTOFINDER 350€</td>
+      <td>7315612</td>
+      <td>cartographie avertissement 350€</td>
+    </tr>
+  </table>
+  <p style="margin-top:10px;font-size:0.78rem;color:#f87171"><span class="red">*</span> Le 14/04 le filtre motif n'était PAS appliqué — envoi à TOUS les motifs Georgia (erreur critique).</p>
+</section>
+
+<!-- Workflow Georgia décisionnel -->
+<section>
+  <h2>Workflow Georgia — arbre décisionnel</h2>
+  <table>
+    <tr><th>Étape</th><th>Condition</th><th>Action</th></tr>
+    <tr>
+      <td>1 — Envoi initial</td>
+      <td>RDV agenda Georgia, 1ère consult. chir., pas de conv. existante</td>
+      <td>Envoyer "11111" — allow_reply = OUI</td>
+    </tr>
+    <tr>
+      <td>2A — Réponse CHIRURGIE + CMU</td>
+      <td>Patient dit vouloir chir, mutuelle CMU</td>
+      <td>Envoyer "AAchir Cmu…" — allow_reply = OUI</td>
+    </tr>
+    <tr>
+      <td>2B — Réponse CHIRURGIE + AME</td>
+      <td>Patient dit vouloir chir, mutuelle AME</td>
+      <td>Envoyer "AAAME chir…" — allow_reply = OUI</td>
+    </tr>
+    <tr>
+      <td>2C — Réponse CHIRURGIE + normal</td>
+      <td>Patient dit vouloir chir, pas CMU/AME</td>
+      <td>Transférer RDV → agenda Chir Derm 2205691 même jour/heure</td>
+    </tr>
+    <tr>
+      <td>2D — Réponse DERMATO (non étranger)</td>
+      <td>Patient ne veut pas chir</td>
+      <td>Envoyer "REPLY erreur rdv CHIR" — allow_reply = NON + Annuler RDV</td>
+    </tr>
+    <tr>
+      <td>2E — Réponse DERMATO (étranger)</td>
+      <td>Assurance étrangère</td>
+      <td>SKIP — rien faire</td>
+    </tr>
+    <tr>
+      <td>2F — Réponse AMBIGU</td>
+      <td>Réponse unclear</td>
+      <td>SKIP — tableau ambigus, décision manuelle</td>
+    </tr>
+    <tr>
+      <td>3 — NO REPLY éligible CMU/AME</td>
+      <td>Pas de réponse + CMU/AME OU &lt;22 ans hors 75/92200/92300</td>
+      <td>Envoyer "NO REPLY chir" + Bloquer patient + Annuler RDV</td>
+    </tr>
+    <tr>
+      <td>3 — NO REPLY non éligible</td>
+      <td>Pas de réponse + non éligible</td>
+      <td>Attendre — aucune action</td>
+    </tr>
+  </table>
+</section>
+
+<!-- Délais NO REPLY -->
+<section>
+  <h2>Délais NO REPLY (Georgia — éligibles seulement)</h2>
+  <table>
+    <tr><th>Délai avant RDV</th><th>Déclencher NO REPLY après</th></tr>
+    <tr><td>&lt; 24h</td><td>4h sans réponse</td></tr>
+    <tr><td>24h – 48h</td><td>6h sans réponse</td></tr>
+    <tr><td>48h – 72h</td><td>12h sans réponse</td></tr>
+    <tr><td>&gt; 72h</td><td>48h sans réponse</td></tr>
+  </table>
+</section>
+
+<!-- Erreurs -->
+<section>
+  <h2>Erreurs commises — à ne plus reproduire</h2>
+  <div class="warn-box">
+    <h3>⚠️ Erreur 1 — "11111" envoyé à TOUS les motifs Georgia</h3>
+    <ul>
+      <li>~650 patients Georgia ont reçu le message, pas seulement les "1ère consult. chir."</li>
+      <li>Patients carto, contrôle, dermatoscopie ont reçu le message à tort</li>
+      <li>Impossible de supprimer (pas d'API DELETE ni bouton UI)</li>
+    </ul>
+  </div>
+  <div class="warn-box">
+    <h3>⚠️ Erreur 2 — 3 batches Chir Derm sans déduplication</h3>
+    <ul>
+      <li>3 batches lancés en séquence sans check conversations → doublons massifs</li>
+      <li>Razafi a reçu 5x le même message, Barret 4x</li>
+      <li>Quasi tous les 288 patients chirurgie derm ont des doublons</li>
+    </ul>
+  </div>
+  <div class="warn-box">
+    <h3>⚠️ Erreur 3 — ~550 réponses standard sans filtre agenda</h3>
+    <ul>
+      <li>Auto-réponses (prix, adresse, ordonnance, mutuelle…) envoyées à TOUTES conversations matchant un pattern</li>
+      <li>Pas de filtre par agenda ni par motif</li>
+      <li>Des patients Assouline, Lellouch ont reçu des réponses Maison Abeille</li>
+    </ul>
+  </div>
+  <div class="warn-box">
+    <h3>⚠️ Erreur 4 — Envoi à HACINI (avait déjà un NO REPLY de mars)</h3>
+    <ul>
+      <li>Le check conversations ne détecte pas les anciens messages CRM</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Règles -->
+<section>
+  <h2>Règles absolues retenues</h2>
+  <div class="rule-box">
+    <h3>✅ Règles d'envoi</h3>
+    <ul>
+      <li><strong>TOUJOURS d2p</strong> — jamais CRM (<code>/crm/appointment_messages</code> = doublons invisibles)</li>
+      <li><strong>TOUJOURS check conversations</strong> avant envoi — <code>GET conversations?patient_id=X</code></li>
+      <li><strong>JAMAIS 2 batches</strong> sur le même agenda sans dédup entre eux</li>
+      <li><strong>TOUJOURS filtrer par motif</strong> (visit_motive_id) avant tout envoi massif</li>
+      <li><strong>Tester sur 1-2 patients</strong> avant tout batch</li>
+      <li>Pause 120-150ms entre chaque patient</li>
+    </ul>
+  </div>
+  <div class="rule-box">
+    <h3>✅ Règles de traitement</h3>
+    <ul>
+      <li>Marquer TOUS les messages comme "Traitée" après chaque patient</li>
+      <li>Désactiver les tâches auto avant un batch manuel (anti-race-condition)</li>
+      <li>Un seul processus d'envoi à la fois</li>
+      <li>Jamais répondre aux CMU/AME sans workflow prévu</li>
+    </ul>
+  </div>
+</section>
+
+<p style="font-size:0.75rem;color:#374151;text-align:center;margin-top:40px">Généré par Claude — 16 avril 2026 — Maison Abeille</p>
+
+</body>
+</html>
