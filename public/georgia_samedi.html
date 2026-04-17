@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Georgia — Samedi 18 avril 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #2d3748; }
+  header { background: #1a202c; color: white; padding: 20px 32px; }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header p { font-size: 13px; color: #a0aec0; margin-top: 4px; }
+  .summary { display: flex; gap: 16px; padding: 20px 32px; flex-wrap: wrap; }
+  .badge { padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; }
+  .badge.send { background: #c6f6d5; color: #276749; }
+  .badge.wait { background: #fefcbf; color: #744210; }
+  .badge.reply { background: #bee3f8; color: #2a4365; }
+  .badge.total { background: #e2e8f0; color: #2d3748; }
+  table { width: calc(100% - 64px); margin: 0 32px 32px; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  th { background: #2d3748; color: white; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #edf2f7; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f7fafc; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .pill.send { background: #c6f6d5; color: #276749; }
+  .pill.wait { background: #fefcbf; color: #744210; }
+  .pill.reply { background: #bee3f8; color: #2a4365; }
+  .msg-preview { color: #718096; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .nb { text-align: center; font-weight: 600; }
+  .nb.many { color: #e53e3e; }
+  .heure { font-weight: 600; color: #2b6cb0; }
+  .updated { padding: 0 32px 16px; font-size: 12px; color: #a0aec0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Georgia KANELLOPOULOU — Samedi 18 avril 2026</h1>
+  <p>Agenda 2162162 &middot; Motif : Consultation de chirurgie dermatologique (15289210) &middot; 65 patients</p>
+</header>
+<div class="summary" id="summary"></div>
+<p class="updated">Mis a jour le 17/04/2026 &mdash; cliquer sur Doctolib pour voir le detail des messages</p>
+<table>
+  <thead>
+    <tr>
+      <th>Heure</th>
+      <th>Patient</th>
+      <th>Mutuelle</th>
+      <th>Conv.</th>
+      <th>Statut</th>
+      <th>Dernier message</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+<script>
+var data = [
+  {"nom":"El cheikh Cherine","h":"09:30","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Zerizer Lilia","h":"09:40","mutuelle":"Mutuelle personnelle","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"ITIER SANDRINE","h":"09:50","mutuelle":"Mutuelle entreprise","nb_conv":2,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"BARREIROS SERGIO","h":"10:00","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Dussart Julie","h":"10:10","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Fazi Francois-Joseph","h":"10:10","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Dousset Julie","h":"10:10","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"MORIS GERALDINE","h":"10:10","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"boudaoud luka","h":"10:10","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"PENELA DOMINIQUE","h":"10:20","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"ATHANE CAMILLE","h":"10:30","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Pech Lili","h":"10:50","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"M'tir Mehdi","h":"10:50","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Hanzouli Mariem","h":"11:00","mutuelle":"Mutuelle entreprise","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"BATTISTON Stephane","h":"11:10","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Billa Marie","h":"11:10","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Abdelaziz Boubtane","h":"11:10","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"VEREECKE Damien","h":"11:20","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"claudel mbang-yo asrabe","h":"11:30","mutuelle":"Mutuelle entreprise","nb_conv":3,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"larafi imane","h":"11:40","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"MOHAMED VONIHASINA","h":"11:40","mutuelle":"Mutuelle entreprise","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Riguel Margot","h":"11:50","mutuelle":"Mutuelle entreprise","nb_conv":2,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"degirmenci namik","h":"12:30","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"RHIATI Meryeme","h":"12:40","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"NERRIERE THOMAS FRANCOIS","h":"12:50","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"El Hebil Mouna","h":"12:50","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Toklu Satilmis","h":"13:00","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Marafao Magda","h":"13:10","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"ABKARI Mouna","h":"13:30","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"abdellaoui reda","h":"13:50","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"CAILLAREC Evan","h":"14:00","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Benkreif Ramzi","h":"14:00","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Tamour Amel","h":"14:10","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Bonnot Lou","h":"14:10","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Bendebbache Mohammed Yasser","h":"14:10","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"THOMAS Arokiamarie Anitha","h":"14:20","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"NADIR SOUAD","h":"14:30","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"LUCAS Mathilde","h":"14:30","mutuelle":"\u2014","nb_conv":2,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"norek Marta","h":"14:40","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"CHARPENTIER JULES","h":"14:40","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"BELLEPAUME Cyrille","h":"14:50","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Masambu Adam","h":"15:00","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Asensio Eugenia","h":"15:00","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Malavergne Nathan","h":"15:10","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Robichon Loris","h":"15:20","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"BARTHELEMY Adeline","h":"15:30","mutuelle":"\u2014","nb_conv":2,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Fideles Leticia","h":"15:30","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Grat Anne-Emmanuelle","h":"15:50","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Aydin Sivan","h":"15:50","mutuelle":"\u2014","nb_conv":5,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"FLURY THIERRY","h":"16:00","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Taillandier pierre","h":"16:00","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"CAIMEL NURIA","h":"16:10","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"bouzambou yousra","h":"16:20","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Laraise Balliemem","h":"16:30","mutuelle":"\u2014","nb_conv":22,"statut":"EN ATTENTE","dernier_msg":"\u26a0\ufe0f 22 conv (doublons !)"},
+  {"nom":"Berouag Ines","h":"16:40","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Deit Nathalie","h":"16:50","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Raymond Wendy","h":"17:00","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Mohamed Fetni","h":"17:00","mutuelle":"\u2014","nb_conv":2,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"HELLAL ROSA","h":"17:10","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Joly Nesrine","h":"17:10","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Alidou Adnane","h":"17:20","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Moussa Sabrine","h":"17:30","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"},
+  {"nom":"Audirac Ivelyne","h":"17:30","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Leonardo Sousa","h":"17:40","mutuelle":"\u2014","nb_conv":0,"statut":"A ENVOYER","dernier_msg":"\u2014"},
+  {"nom":"Riley ORLA","h":"17:40","mutuelle":"\u2014","nb_conv":1,"statut":"EN ATTENTE","dernier_msg":"\u2014"}
+];
+
+var nSend = data.filter(function(d){return d.statut==='A ENVOYER';}).length;
+var nWait = data.filter(function(d){return d.statut==='EN ATTENTE';}).length;
+var nReply = data.filter(function(d){return d.statut==='REPONDU';}).length;
+
+document.getElementById('summary').innerHTML =
+  '<div class="badge total">Total : ' + data.length + ' patients</div>' +
+  '<div class="badge send">Vert : ' + nSend + ' a envoyer</div>' +
+  '<div class="badge wait">Jaune : ' + nWait + ' en attente</div>' +
+  '<div class="badge reply">Bleu : ' + nReply + ' repondu</div>';
+
+var tbody = document.getElementById('tbody');
+var html = '';
+data.forEach(function(p) {
+  var pillClass = p.statut==='A ENVOYER' ? 'send' : p.statut==='REPONDU' ? 'reply' : 'wait';
+  var pillLabel = p.statut==='A ENVOYER' ? 'A ENVOYER' : p.statut==='REPONDU' ? 'REPONDU' : 'EN ATTENTE';
+  var nbClass = p.nb_conv > 3 ? 'many' : '';
+  html += '<tr>' +
+    '<td class="heure">' + p.h + '</td>' +
+    '<td><strong>' + p.nom + '</strong></td>' +
+    '<td style="color:#718096;font-size:12px">' + p.mutuelle + '</td>' +
+    '<td class="nb ' + nbClass + '">' + p.nb_conv + '</td>' +
+    '<td><span class="pill ' + pillClass + '">' + pillLabel + '</span></td>' +
+    '<td class="msg-preview">' + p.dernier_msg + '</td>' +
+    '</tr>';
+});
+tbody.innerHTML = html;
+</script>
+</body>
+</html>
